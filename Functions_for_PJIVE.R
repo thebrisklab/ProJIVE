@@ -3,9 +3,9 @@
 #######                 Author: Raphiel J. Murden                                      ####################################
 #######                 Supervised by Benjamin Risk                                    ####################################
 ###########################################################################################################################
-library(rootSolve); library(Matrix); library(ggplot2); library(reshape2); library(fields); library(mvtnorm)
-library(dplyr); library(xtable); library(optimx); library(gplots); library(MASS); library(r.jive); 
-library(extraDistr)
+require(rootSolve); require(Matrix); require(ggplot2); require(reshape2); require(fields); require(mvtnorm)
+require(dplyr); require(xtable); require(optimx); require(gplots); require(MASS); require(r.jive); 
+require(extraDistr)
 
 ######################################################################################################################
 ###########   Generates 2 Simulated Datasets that follow JIVE Model using binary subject scores   ####################
@@ -19,7 +19,7 @@ GenerateToyData <- function(n, p1, p2, JntVarEx1, JntVarEx2, IndVarEx1, IndVarEx
   r.I1 = ind_rank1
   r.I2 = ind_rank2
   
-  print(paste("Generating Scores from", Scores, "distribution and Loadings from", Loads))
+  print(paste("Generating Scores from", Scores, "distributions and Loadings from", Loads, "distributions."))
   
   # Generate Joint scores
   if(Scores=="Binomial"){
@@ -28,9 +28,6 @@ GenerateToyData <- function(n, p1, p2, JntVarEx1, JntVarEx2, IndVarEx1, IndVarEx
     b = rbinom(n*(r.I1 + r.I2), size=1, prob=0.4)
     b = 1 - 2*b
     IndivScores = matrix(b, nrow = n, ncol = (r.I1 + r.I2))
-  } else if (Scores=="Gaussian"){
-    JntScores = matrix(rnorm(n*r.J), ncol = r.J)
-    IndivScores = matrix(rnorm(n*(r.I1+r.I2)), nrow = n, ncol = (r.I1 + r.I2))
   } else if (Scores=="Gaussian_Mixture"){
     mix.probs = c(0.2, 0.5, 0.3)
     JointScores.g1 = matrix(rnorm(n*mix.probs[1]*r.J), ncol = r.J)
@@ -38,6 +35,9 @@ GenerateToyData <- function(n, p1, p2, JntVarEx1, JntVarEx2, IndVarEx1, IndVarEx
     JointScores.g3 = matrix(rnorm(n*mix.probs[3]*r.J, 4, 1), ncol = r.J)
     JntScores = rbind(JointScores.g1, JointScores.g2, JointScores.g3)
     
+    IndivScores = matrix(rnorm(n*(r.I1+r.I2)), nrow = n, ncol = (r.I1 + r.I2))
+  } else if(Scores=="Gaussian"){
+    JntScores = matrix(rnorm(n*r.J), ncol = r.J)
     IndivScores = matrix(rnorm(n*(r.I1+r.I2)), nrow = n, ncol = (r.I1 + r.I2))
   }
     
@@ -159,7 +159,8 @@ GenerateToyData <- function(n, p1, p2, JntVarEx1, JntVarEx2, IndVarEx1, IndVarEx
   Scores = list(JntScores, IndScores.X, IndScores.Y)
   names(Scores) = c("Joint", "Indiv_1", "Indiv_2")
   
-  Loadings = list(AdjJntLoad.X, IndLoad.X, AdjJntLoad.Y, IndLoad.Y)
+  Loadings = list(sqrt(D.J)%*%AdjJntLoad.X, sqrt(D.IX)%*%IndLoad.X, 
+                  sqrt(D.J)%*%AdjJntLoad.Y, sqrt(D.IY)%*%IndLoad.Y)
   names(Loadings) = c("Joint_1", "Indiv_1", "Joint_2", "Indiv_2")
   
   out = list(Dat.Comps, Blocks, Scores, Loadings)
@@ -256,6 +257,7 @@ ConvSims_gg_ProJIVE<-function(AllSims){
   Method = substr(sim.names[grep("Scores",sim.names)], 1,7)
   Method = sub("E.O", "E", Method); Method = sub("E.", "E", Method)
   Method = rep(as.factor(Method), each = num.sims)
+  Method = relevel(Method, "ProJIVE")
   
   Type = substring(sim.names[grep("Scores", sim.names)], 8)
   Type = sub("racle.", "", Type); Type = sub(".J", "J", Type); Type = sub(".I", "I", Type);
@@ -275,6 +277,7 @@ ConvSims_gg_ProJIVE<-function(AllSims){
   Method = rep(substr(sim.names[grep("Loads",sim.names)], 1,7), each = num.sims)
   Method = sub("E.O", "E", Method); Method = sub("E.", "E", Method)
   Method = as.factor(Method)
+  Method = relevel(Method, "ProJIVE")
   
   Type = rep(substring(sim.names[grep("Loads", sim.names)], 7), num.sims)
   Type = sub("Oracle.", "", Type); Type = sub("E.", "", Type)
@@ -422,9 +425,11 @@ eval_converge=function(vals_vec,all_obs.LogLik, diff.tol){
 ###########          pJIVE ML estimation of JIVE model     ##################
 ###########          that uses EM algorithm                ##################
 #############################################################################
-ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,plots=TRUE,chord.tol=-1,sig_hat=NULL){
+ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,plots=TRUE,chord.tol=-1,sig_hat=NULL, init.loads = NULL){
   
-  ## Secondary Parameters
+  ## init.loads must be a list of two lists - first item contains a list of joint loading matrices
+  ##                                          second item is a list of indiv loading matrices
+  ##                                          each matrix must have dimension p_k-by-r_
   
   # Total sample size
   N=dim(Y)[1]
@@ -453,12 +458,20 @@ ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,plots=TRUE,chord.tol=-1,s
   }
   
   # get initial estimates of loadings matrices via cc.jive
-  dat.blocks=list(Y[,1:P[1]],Y[,P[1]+(1:P[2])])
-  cjive.solution = cc.jive(dat.blocks = dat.blocks, signal.ranks = Q[1]+Q[-1], 
-                           joint.rank = Q[1], perm.test = FALSE)
-  
-  WJ = lapply(cjive.solution$sJIVE$joint_matrices, function(x) x$v)
-  WI =lapply(cjive.solution$sJIVE$indiv_matrices, function(x) x$v)
+  if (is.null(init.loads)){
+    WJ = list(matrix(rnorm(Q[1]*P[1]), nrow = P[1]),matrix(rnorm(Q[1]*P[2]), nrow = P[2]))
+    WI = list(matrix(rnorm(Q[2]*P[1]), nrow = P[1]),matrix(rnorm(Q[3]*P[2]), nrow = P[2]))
+  } else if (is.list(init.loads)){
+    WJ = init.loads[[1]]
+    WI = init.loads[[2]]
+  } else if(init.loads == "CJIVE"){
+    dat.blocks=list(Y[,1:P[1]],Y[,P[1]+(1:P[2])])
+    cjive.solution = cc.jive(dat.blocks = dat.blocks, signal.ranks = Q[1]+Q[-1], 
+                             joint.rank = Q[1], perm.test = FALSE)
+    
+    WJ = lapply(cjive.solution$sJIVE$joint_matrices, function(x) x$v)
+    WI =lapply(cjive.solution$sJIVE$indiv_matrices, function(x) x$v)
+  }
   
   # Block specific loading matrices W_k
   wk_hat=wji_hat=list()
@@ -473,7 +486,11 @@ ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,plots=TRUE,chord.tol=-1,s
   # Initializationf of sig_hat
   # sig_hat=list(rep(1,K))                       
   if(is.null(sig_hat)){
+    sig_hat = rnorm(length(P))
+  } else if (is.character(sig_hat) & sig_hat[1] == "MLE"){
     sig_hat=c(mean(svd(Y[,1:P[1]], nu = 0, nv = 0)$d[-(1:sum(Q[-3]))]),mean(svd(Y[,P[1]+(1:P[2])], nu = 0, nv = 0)$d[-(1:sum(Q[-2]))]))
+  # } else if (is.numeric(sig_hat)){
+  #   print("Using fixed values for noise variances:", round(sig_hat, 3))
   }
   
   # Total noise matrices D
@@ -559,11 +576,11 @@ ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,plots=TRUE,chord.tol=-1,s
     
     # Compute subject scores
     exp.theta = U = Y%*%solve(d_hat)%*%w%*%c_solv
-
+    
     all_obs.LogLik=append(all_obs.LogLik,obs_LogLik(Y, mu_hat, w_hat, d_hat))  
     all_complete.LogLik=append(all_complete.LogLik, complete_LogLik(Y, exp.theta, mu_hat, w_hat, d_hat))  
   }
-
+  
   
   
   print(paste0("Total Iteration = ",toString(iter)))
@@ -592,3 +609,27 @@ ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,plots=TRUE,chord.tol=-1,s
   return(out)
 }
 
+brain.descrip = function(dat,x,out.row.names = NULL){
+  dat1 = dat[,-which(colnames(dat)==x)]
+  dat.mean1 = apply(dat1, 2, function(y) aggregate(y~Covars_AllCog[,x],
+                                                   FUN = function(x) round(mean(x),1)))
+  dat.mean = t(sapply(dat.mean1, function(mean.list) mean.list$y))
+  dat.mean = cbind(dat.mean, round(colMeans(dat1),1))
+  rownames(dat.mean) = names(dat.mean1)
+  
+  dat.sd1 = apply(dat1, 2, function(y) aggregate(y~Covars_AllCog[,x],
+                                                 FUN = function(x) round(sd(x), 2)))
+  dat.sd = t(sapply(dat.sd1, function(mean.list) mean.list$y))
+  rownames(dat.sd) = names(dat.sd1)
+  dat.sd = cbind(dat.sd, apply(dat1, 2, function(y) round(sd(y),2)))
+  
+  dat.f.stats = apply(dat1, 2, function(y) summary(lm(y~Covars_AllCog[,x]))[["fstatistic"]])
+  dat.pvals = round(apply(dat.f.stats, 2, function(f) 1-pf(f[1],f[2],f[3])),3)
+  
+  out.tab = matrix(paste0(dat.mean, " (", dat.sd, ")"), ncol = 4)
+  out.tab = cbind(out.tab, dat.pvals)
+  
+  rownames(out.tab) = rownames(dat.mean)
+  colnames(out.tab) = c(dat.mean1[[1]][,1], "Total", "p value")
+  return(out.tab)
+}

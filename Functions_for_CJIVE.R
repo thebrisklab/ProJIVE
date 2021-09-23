@@ -3,9 +3,9 @@
 #######                 Author: Raphiel J. Murden                                      ####################################
 #######                 Supervised by Benjamin Risk                                    ####################################
 ###########################################################################################################################
-library(rootSolve); library(Matrix); library(ggplot2); library(reshape2); library(fields); library(mvtnorm)
-library(dplyr); library(xtable); library(optimx); library(gplots); library(MASS); library(r.jive); 
-library(extraDistr)
+require(rootSolve); require(Matrix); require(ggplot2); require(reshape2); require(fields); require(mvtnorm)
+require(dplyr); require(xtable); require(optimx); require(gplots); require(MASS); require(r.jive); 
+require(extraDistr)
 
 ######################################################################################################################
 ###########   Generates 2 Simulated Datasets that follow JIVE Model using binary subject scores   ####################
@@ -688,6 +688,10 @@ create.graph.long = function(gmatrix,sort_indices=NULL) {
 #####################         Plot CJIVE Norms from Simulation Study      #######################
 #################################################################################################
 gg.norm.plot<-function(norm.dat, cols, show.legend = F, text.size, lty = 1, y.max = 1){
+  labs = levels(norm.dat$Type)[c(3,6,7,1,2,4,5)]
+  labs.ex = c("Joint Subj Scores", expression("Joint Loadings"*"X"[1]), expression("Joint Loadings"*"X"[2]), 
+              expression("Indiv Subj Scores"*"X"[1]), expression("Indiv Subj Scores"*"X"[2]),
+              expression("Indiv Loadings"*"X"[1]), expression("Indiv Loadings"*"X"[2]))
   ggplot(data = norm.dat, aes(x = Type, y = Norm)) +
     geom_boxplot(aes(fill = Method), position = "dodge", outlier.alpha = 0, show.legend = show.legend, linetype = lty,
                  fatten = 0.5) +
@@ -696,7 +700,52 @@ gg.norm.plot<-function(norm.dat, cols, show.legend = F, text.size, lty = 1, y.ma
     #              show.legend = F) +
     labs(y = "Chordal Norm", x = "Type") +
     facet_grid(JVE_2 ~ JVE_1, labeller = label_parsed) +
-    scale_x_discrete(limits = levels(sim.all.norms.gg$Type)[c(3,6,7,1,2,4,5)], labels = labs.ex) +
+    scale_x_discrete(limits = levels(norm.dat$Type)[c(3,6,7,1,2,4,5)], labels = labs.ex) +
+    scale_fill_manual(values=cols) +
+    scale_colour_manual(values=cols) + 
+    theme_bw() + coord_cartesian(ylim = c(0, y.max)) + 
+    theme(axis.title.x = element_blank(), axis.text.x = element_text(face = "bold", hjust = 01, angle = 70, size = text.size-3),
+          text = element_text(size = text.size))
+}
+
+#################################################################################################
+#####################         Plot CJIVE Norms from Simulation Study      #######################
+#################################################################################################
+gg.score.norm.plot<-function(norm.dat, cols, show.legend = F, text.size, lty = 1, y.max = 1){
+  labs = levels(norm.dat$Type)[grep("Score",levels(norm.dat$Type))][c(3,1,2)]
+  labs.ex = c("Joint Subj Scores", expression("Indiv Subj Scores"*"X"[1]), expression("Indiv Subj Scores"*"X"[2]))
+  ggplot(data = norm.dat, aes(x = Type, y = Norm)) +
+    geom_boxplot(aes(fill = Method), position = "dodge", outlier.alpha = 0, show.legend = show.legend, linetype = lty,
+                 fatten = 0.5) +
+    # geom_boxplot(aes(color = Method),
+    #              fatten = NULL, fill = NA, coef = 0, outlier.alpha = 0,
+    #              show.legend = F) +
+    labs(y = "Chordal Norm", x = "Type") +
+    facet_grid(JVE_2 ~ JVE_1, labeller = label_parsed) +
+    scale_x_discrete(limits = labs, labels = labs.ex) +
+    scale_fill_manual(values=cols) +
+    scale_colour_manual(values=cols) + 
+    theme_bw() + coord_cartesian(ylim = c(0, y.max)) + 
+    theme(axis.title.x = element_blank(), axis.text.x = element_text(face = "bold", hjust = 01, angle = 70, size = text.size-3),
+          text = element_text(size = text.size))
+}
+
+#################################################################################################
+#####################         Plot CJIVE Norms from Simulation Study      #######################
+#################################################################################################
+gg.load.norm.plot<-function(norm.dat, cols, show.legend = F, text.size, lty = 1, y.max = 1){
+  labs = levels(norm.dat$Type)[grep("Load",levels(norm.dat$Type))][c(3,4,1,2)]
+  labs.ex = c(expression("Joint Variable Loadings"*"X"[1]),expression("Joint Variable Loadings"*"X"[2]),
+              expression("Indiv Variable Loadings"*"X"[1]), expression("Indiv Variable Loadings"*"X"[2]))
+  ggplot(data = norm.dat, aes(x = Type, y = Norm)) +
+    geom_boxplot(aes(fill = Method), position = "dodge", outlier.alpha = 0, show.legend = show.legend, linetype = lty,
+                 fatten = 0.5) +
+    # geom_boxplot(aes(color = Method),
+    #              fatten = NULL, fill = NA, coef = 0, outlier.alpha = 0,
+    #              show.legend = F) +
+    labs(y = "Chordal Norm", x = "Type") +
+    facet_grid(JVE_2 ~ JVE_1, labeller = label_parsed) +
+    scale_x_discrete(limits = labs, labels = labs.ex) +
     scale_fill_manual(values=cols) +
     scale_colour_manual(values=cols) + 
     theme_bw() + coord_cartesian(ylim = c(0, y.max)) + 
@@ -763,4 +812,17 @@ Melt.Sim.Cors<-function(sim.dat,r.J,p1,p2){
   Pred.Cors.melt$JVE_1 = factor(Pred.Cors.melt$JntVarEx1, labels = JVE1.labs)
   Pred.Cors.melt$JVE_2 = factor(Pred.Cors.melt$JntVarEx2, labels = JVE2.labs)
   Pred.Cors.melt
+}
+
+############################################################c#####################################
+##############         Function to sign-correct and scale variable loadings       ################
+##################################################################################################
+scale.loadings = function(loading.comp){
+  x = loading.comp
+  x1 = x/max(abs(x), na.rm = TRUE)
+  # x2 = x/max(x, na.rm = TRUE)
+  # pos = max(x1, na.rm = TRUE)==max(x2, na.rm = TRUE)
+  # ((-1)^(pos))*x1
+  pos = sign(skew(x1, na.rm = TRUE))
+  ((-1)^(pos))*x1
 }

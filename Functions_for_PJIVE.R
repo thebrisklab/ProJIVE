@@ -341,11 +341,11 @@ w_to_w_k=function(w, P, Q){
 ## FUNC to generate list(G) of D matrix from sigma vectors
 generate_d=function(sig_lst, p_vec){
   
-  d=list()
+  d=NULL
   for(k in 1:length(p_vec)){
-    d[[k]]=rep(sig_lst[k],p_vec[k])
+    d = c(d, rep(sig_lst[k],p_vec[k]))
   }
-  D=diag(unlist(d))
+  D=diag(d)
   
   return(D)
 }
@@ -609,6 +609,9 @@ ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,plots=TRUE,chord.tol=-1,s
   return(out)
 }
 
+#############################################################################
+##########      Constructs descriptive statistics table    ##################
+#############################################################################
 brain.descrip = function(dat,x,out.row.names = NULL){
   dat1 = dat[,-which(colnames(dat)==x)]
   dat.mean1 = apply(dat1, 2, function(y) aggregate(y~Covars_AllCog[,x],
@@ -632,4 +635,31 @@ brain.descrip = function(dat,x,out.row.names = NULL){
   rownames(out.tab) = rownames(dat.mean)
   colnames(out.tab) = c(dat.mean1[[1]][,1], "Total", "p value")
   return(out.tab)
+}
+
+
+#############################################################################
+###########   modification of rain cloud plots function   ##################
+#############################################################################
+raincloundplots_rjm <- function(data, x, y, cols.in = NULL, lab.inputs){
+  okabe <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+  x = as.factor(data[,x]); 
+  y = data[,y]
+  levs = levels(x); 
+  num.levs = length(levels(x))
+  cols.in = ifelse(is.null(cols.in), okabe[1:num.levs])
+  out.plot = ggplot(data = data) 
+  for(i in 1:num.levs){
+    dat.temp = data[x == levs[i],]
+    out.plot = out.plot +
+      geom_jitter(data = dat.temp, aes(x = x, y = y), color = cols.in[i], alpha = 0.6, 
+                  show.legend = FALSE, position = position_nudge(x = 0.2), size = 1) + 
+      raincloudplots:::geom_flat_violin(data = dat.temp, aes(x = x, y = y), fill = cols.in[i],
+                                        color = cols.in[i], position = position_nudge(x = 0.35), alpha = 0.6, show.legend = FALSE) + 
+      gghalves::geom_half_boxplot(data = dat.temp, aes(x = x, y = y), fill = cols.in[i], color = cols.in[i], 
+                                  position = position_nudge(x = 0.2), side = "r", outlier.shape = NA, center = TRUE, errorbar.draw = FALSE, 
+                                  width = 0.2, alpha = 0.6, show.legend = FALSE) + 
+      labs(x = lab.inputs[1], y = lab.inputs[2], subtitle = lab.inputs[3])
+  }
+  out.plot
 }

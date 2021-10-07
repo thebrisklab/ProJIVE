@@ -194,6 +194,7 @@ perm.jntrank <- function(dat.blocks, signal.ranks = NULL, nperms = 500, perc.var
   if(n.r.1 != n.r.2){stop("The number of rows in each data matrix must match")}
   n = n.r.1
   
+  K = length(dat.blocks)
   ##Column center data blocks
   if(center){
     cent.blocks = lapply(dat.blocks, function(D){scale(D, scale = F)})
@@ -202,28 +203,27 @@ perm.jntrank <- function(dat.blocks, signal.ranks = NULL, nperms = 500, perc.var
   }
   
   if(is.null(signal.ranks)){
-    d1 = svd(cent.blocks[[1]])$d^2
-    d2 = svd(cent.blocks[[2]])$d^2
-    
-    r.1 = which.min(cumsum(d1) <= perc.var*sum(d1)) 
-    r.2 = which.min(cumsum(d2) <= perc.var*sum(d2))
-    
-    signal.ranks = c(r.1,r.2)
+    all.singvals = sapply(cent.blocks, function(x) svd(x$d))
+    for(k in 1:K){
+      d = all.singvals
+      signal.ranks = c(signal.ranks, which.min(cumsum(d^2) <= perc.var*sum(d^2)) )
+    }
   }
   
-  x1.svd = svd(cent.blocks[[1]], nu = signal.ranks[1], nv = signal.ranks[1])
-  x2.svd = svd(cent.blocks[[2]], nu = signal.ranks[2], nv = signal.ranks[2])
-  
-  U.1 = scale(x1.svd$u, scale = F)
-  U.2 = scale(x2.svd$u, scale = F)
-  
-  U1tU2 = t(U.1)%*%U.2
+  x.all.svd = list()
+  for(k in 1:K){
+    x.all.svd[[k]] = svd(cent.blocks[[k]], nu = signal.ranks[k], nv = signal.ranks[k])
+  }
+
+  U.all = lapply(x.all.svd, function(x) scale(x$u, scale = FALSE))
+
+  U1tU2 = t(U.all[[1]])%*%U.all[[2]]
   orig.corrs = svd(U1tU2)$d
   
   perm.corrs = NULL
   
   for (i in 1:nperms){
-    U1tU2.perm = t(U.1)%*%U.2[sample(n),]
+    U1tU2.perm = t(U.all[[1]])%*%U.all[[2]][sample(n),]
     perm.svd = svd(U1tU2.perm)
     perm.corrs = rbind(perm.corrs, perm.svd$d)
   }

@@ -123,10 +123,3 @@ norm(cov1-cov1star,type = 'F')
 norm(cov2-cov2star,type = 'F')
 
 
-
-
-#######
-# To do: create a general formula that allows
-# the construction of a non-orthogonal matrix
-# that leads to equivalent covariance matrices:
-

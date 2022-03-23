@@ -18,9 +18,7 @@ set.seed(0)
 
 ```
 
-### Toy data which correspond to the ProJIVE model
-
-## Input Parameters
+## Input Parameters to Simulate Data
 Input parameters for generating data include the following quantities: $n$ - number of subjects; $p_k$ - number of features in $k^{th}$ data block ($k=1,\dots,K$); $r_J$ - joint rank; $r_{Ik}$ - individual rank for $k^{th}$ data block; $R_{Jk}^2$ - proportion of total variation n $k^{th}$ data block attributable to the joint signal; $R_{Ik}^2$ - proportion of total variation n $k^{th}$ data block attributable to it's individual signal. Note: the last parameters described were proportions and therefore require $R_{Jk}^2 + R_{Ik}^2 \leq 1$ for each $k$. The user may also set a 'seed number' to ensure reproducibility. We use seed number = 0.
 
 ```{r, echo = TRUE}
@@ -47,7 +45,7 @@ IndVarEx1 = 0.25
 IndVarEx2 = 0.25
 ```
 
-## Simulated Toy Datasets
+### The GenerateToyData Function
 In addition to the input parameters defined above, the function "GenerateToyData" has the following parameters: 
 'equal.eig' - logical (TRUE/FALSE), which allows the user to specify whether components within a data-blocks joint (or individual) signal should be equally waited. The default is FALSE
 
@@ -128,8 +126,8 @@ bquote(paste(R[I1]^2, '=' , .(round(IVE.X1,4))))
 bquote(paste(R[I2]^2, '=' , .(round(IVE.X2,4))))
 ```
 
-##JIVE analyses
-#ProJIVE
+# JIVE analyses
+## ProJIVE
 Now, compute the ProJIVE solution and graph joint subject scores (not individual scores) in addition to joint and individual loadings. The ProJIVE algorithm requires an initial guess for the noise variances and the variable loadings. By default, these values are chosen at random from Gaussian distributions. The initial values can also be chosen by the user. Initial noise error variances can be entered as a vector of length $K$ and initial loadings as a list of length $K$ with the $k^{th}$ entry as a $p_k \times (r_J + r_{Ik})$ matrix of real numbers. Alternatively, we recommend the settings below. A user can initialize the noise variances at their MLE from the probabilistic model of principal components analysis (attributed to Tipping and Bishop) by setting 'sig_hat = "MLE"' and variable loadings at their AJIVE (i.e. CJIVE for $K=2$) solution with 'init.loads = "AJIVE"'. Lastly, ProJIVE automatically generates graphs of congvergence criterion for each iteration of the EM algorithm. These can be turned off by specifying 'plots = FALSE' in the ProJIVE call.   
 ```{r, echo = TRUE}
 ##### ProJIVE
@@ -170,7 +168,7 @@ plot(IndivLd.X2, PJIVE.loads.X2[,-(1:r.J)], xlab = "True Individual Loadings X2"
 layout(1)
 ```
 
-#CJIVE
+## CJIVE
 Now, compute the CJIVE solution and graph subject scores and variable loadings.
 ```{r, echo = TRUE}
 #### CJIVE
@@ -216,8 +214,7 @@ plot(IndivLd.X2, WI[[2]], xlab = "True Individual Loadings X2", ylab = "CJIVE In
 layout(1)
 ```
 
-### Toy data which do not correspond to the ProJIVE model
-## Gaussian Mixture Scores
+# Gaussian Mixture Scores: Toy data which do not correspond to the ProJIVE model
 When study participants can be categorized due to an exogenous variable that is associated with the joint sources of variation (i.e. diagnosis categories, etc.), joint subject scores may be used to categorize participants. The code snippet here generates toy data that reflect this scenario by taking joint subject scores from Gaussian mixture model.
 
 ```{r, echo = TRUE}
@@ -280,6 +277,7 @@ bquote(paste(R[I1]^2, '=' , .(round(IVE.X1,4))))
 bquote(paste(R[I2]^2, '=' , .(round(IVE.X2,4))))
 ```
 
+## CJIVE
 Now, compute the CJIVE solution and graph subject scores and loadings.
 ```{r, echo = TRUE}
 CJIVE.res = cc.jive(blocks, true_signal_ranks, r.J, perm.test = FALSE)
@@ -324,6 +322,7 @@ plot(IndivLd.X2, WI[[2]], xlab = "True Individual Loadings X2", ylab = "CJIVE In
 layout(1)
 ```
 
+## ProJIVE
 Now, compute the PJIVE solution and graph subject scores and loadings.
 ```{r, echo = TRUE}
 ##### ProJIVE

@@ -1,5 +1,4 @@
-# ProJIVE
-Probabilistic JIVE
+# ProJIVE: Probabilistic Joint and Individual Variance Explained
 
 ## Simulations
 Scripts to run the simulation study described in "Probabilistic Joint and Individual Variance Explained (ProJIVE) for Data Integration" are located in the "Simulations" folder. Siulations were conducted on the High Power Computing cluster (HPC) at Rollins School of Public Health, Emory University. The HPC runs the CentOS Linux operating system (currently version 8) and uses the SLURM job scheduler. Scripts are set up to run one replication per available compute node and stores results from each replication as a CSV file.

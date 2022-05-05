@@ -210,12 +210,12 @@ eig.WI1star$values</code></pre>
 <pre class="r"><code>Omat = svd(matrix(rnorm(rI1.star^2),rI1.star))$u
 WI1star= WI1star%*%Omat
 WI1star</code></pre>
-<pre><code>##            [,1]       [,2]        [,3]
-## [1,] -0.3017075 -0.3067028  0.46357952
-## [2,]  0.0000000  0.0000000  0.00000000
-## [3,] -0.6498759  0.7561012  0.07728121
-## [4,] -0.5916865 -0.4394820 -0.67584220
-## [5,]  0.0000000  0.0000000  0.00000000</code></pre>
+<pre><code>##             [,1]       [,2]       [,3]
+## [1,] -0.53444433  0.2876134  0.1778982
+## [2,]  0.00000000  0.0000000  0.0000000
+## [3,] -0.53459820 -0.7073795 -0.4624057
+## [4,] -0.01130916 -0.5411197  0.8408695
+## [5,]  0.00000000  0.0000000  0.0000000</code></pre>
 <p>Next, define the new loadings of the individual components of dataset 2:</p>
 <pre class="r"><code>covWI2star = WI2%*%t(WI2) + WJ2%*%(diag(ncol(WJ2))-T2%*%t(T2))%*%t(WJ2)
 eig.WI2star = eigen(covWI2star)
@@ -231,15 +231,15 @@ cov1star = WJ1star%*%t(WJ1star)+WI1star%*%t(WI1star)
 cov2star = WJ2star%*%t(WJ2star)+WI2star%*%t(WI2star)
 
 norm(cov1-cov1star,type = &#39;F&#39;)</code></pre>
-<pre><code>## [1] 1.553445e-15</code></pre>
+<pre><code>## [1] 6.891548e-16</code></pre>
 <pre class="r"><code>norm(cov2-cov2star,type = &#39;F&#39;)</code></pre>
 <pre><code>## [1] 0</code></pre>
 <p>This demonstrates a ProJIVE model in which the joint versus individual variation is not identifiable, nor are the individual components identifiable.</p>
 </div>
-<div id="identifaibility-when-w_jk-and-w_ik-are-linearly-independent" class="section level1">
-<h1>Identifaibility when <span class="math inline">\(W_{Jk}\)</span> and <span class="math inline">\(W_{Ik}\)</span> are linearly independent</h1>
-<p>When <span class="math inline">\(col(W_{Jk}) \cap col(W_{Ik}) = \{0\}\)</span>, any <span class="math inline">\(T_1 \notin \mathcal{O}\)</span> will result in a negative eigenvalue for the covariance of the individual components, which is not a valid decomposition.</p>
-<p>Here is an example to see how the negative eigenvalues can arise:</p>
+<div id="identifiability-when-w_jk-and-w_ik-are-linearly-independent" class="section level1">
+<h1>Identifiability when <span class="math inline">\(W_{Jk}\)</span> and <span class="math inline">\(W_{Ik}\)</span> are linearly independent</h1>
+<p>When <span class="math inline">\(col(W_{Jk}) \cap col(W_{Ik}) = \{0\}\)</span>, any <span class="math inline">\(T_1 \notin \mathcal{O}\)</span> will result in a negative eigenvalue for the covariance of the individual components, which is not a valid decomposition. It turns out that assuming linear independence leads to identifiability up to orthogonal transformation.</p>
+<p>Here is an example to see how the negative eigenvalues can arise, which implies that the <span class="math inline">\(T_1\)</span> matrix does not satisfy the constraints <span class="math inline">\(W_{Ik}W_{Ik}^\top + W_{Jk}(I - T_k T_k^\top)W_{Jk}^\top \succeq 0\)</span> for <span class="math inline">\(T_2 = (T_1^{-1})^\top\)</span>. .</p>
 <pre class="r"><code>WJ1 = matrix(c(1,1,1,0,0),ncol=1)
 WI1 = matrix(c(1,2,0,0,0),ncol=1)
 

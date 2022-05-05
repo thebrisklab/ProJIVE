@@ -91,11 +91,11 @@ norm(cov2-cov2star,type = 'F')
 
 This demonstrates a ProJIVE model in which the joint versus individual variation is not identifiable, nor are the individual components identifiable. 
 
-# Identifaibility when $W_{Jk}$ and $W_{Ik}$ are linearly independent
+# Identifiability when $W_{Jk}$ and $W_{Ik}$ are linearly independent
 
 When $col(W_{Jk}) \cap col(W_{Ik}) = \{0\}$, any $T_1 \notin \mathcal{O}$ will result in a negative eigenvalue for the covariance of the individual components, which is not a valid decomposition. It turns out that assuming linear independence leads to identifiability up to orthogonal transformation. 
 
-Here is an example to see how the negative eigenvalues can arise:
+Here is an example to see how the negative eigenvalues can arise, which implies that the $T_1$ matrix does not satisfy the constraints $W_{Ik}W_{Ik}^\top + W_{Jk}(I - T_k T_k^\top)W_{Jk}^\top \succeq 0$ for  $T_2 = (T_1^{-1})^\top$. .
 ```{r}
 WJ1 = matrix(c(1,1,1,0,0),ncol=1)
 WI1 = matrix(c(1,2,0,0,0),ncol=1)

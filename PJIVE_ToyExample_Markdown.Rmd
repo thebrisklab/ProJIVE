@@ -19,7 +19,7 @@ set.seed(0)
 ```
 
 ## Input Parameters to Simulate Data
-Input parameters for generating data include the following quantities: $n$ - number of subjects; $p_k$ - number of features in $k^{th}$ data block ($k=1,\dots,K$); $r_J$ - joint rank; $r_{Ik}$ - individual rank for $k^{th}$ data block; $R_{Jk}^2$ - proportion of total variation n $k^{th}$ data block attributable to the joint signal; $R_{Ik}^2$ - proportion of total variation n $k^{th}$ data block attributable to it's individual signal. Note: the last parameters described were proportions and therefore require $R_{Jk}^2 + R_{Ik}^2 \leq 1$ for each $k$. The user may also set a 'seed number' to ensure reproducibility. We use seed number = 0.
+Input parameters for generating data include the following quantities: $n$ - number of subjects; $p_k$ - number of features in $k^{th}$ data block ($k=1,\dots,K$); $r_J$ - joint rank; $r_{Ik}$ - individual rank for $k^{th}$ data block; $R_{Jk}^2$ - proportion of total variation n $k^{th}$ data block attributable to the joint signal; $R_{Ik}^2$ - proportion of total variation n $k^{th}$ data block attributable to it's individual signal. Note: the last parameters described were proportions and therefore require $R_{Jk}^2 + R_{Ik}^2 < 1$ for each $k$. The user may also set a 'seed number' to ensure reproducibility. We use seed number = 0.
 
 ```{r, echo = TRUE}
 # Sample size
@@ -45,7 +45,7 @@ IndVarEx1 = 0.25
 IndVarEx2 = 0.25
 ```
 
-### The GenerateToyData Function
+### The 'GenerateToyData` Function
 In addition to the input parameters defined above, the function "GenerateToyData" has the following parameters: 
 'equal.eig' - logical (TRUE/FALSE), which allows the user to specify whether components within a data-blocks joint (or individual) signal should be equally waited. The default is FALSE
 
@@ -118,13 +118,8 @@ TotVE.X2 = MatVar((JX2 + IX2))/MatVar(blocks[[2]])
 
 ```
 
-Check that values of $R_{Jk}^2$ and $R_{Ik}^2$ in the simulated data match the desired quantities.
-```{r, echo = FALSE}
-bquote(paste(R[J1]^2, '=' , .(round(JVE.X1,4))))
-bquote(paste(R[J2]^2, '=' , .(round(JVE.X2,4))))
-bquote(paste(R[I1]^2, '=' , .(round(IVE.X1,4))))
-bquote(paste(R[I2]^2, '=' , .(round(IVE.X2,4))))
-```
+#### Empirical Variance Explained
+Check that proportions of variance explained in the simulated data match the desired quantities. Empirical quantities of joint variance explained are $R_{J1}^2=$ `r round(JVE.X1,4)` and $R_{J2}^2=$ `r round(JVE.X2,4)`.  For individual variance explained, empirical values are $R_{I1}^2=$ `r round(IVE.X1,4)` and $R_{I2}^2=$ `r round(IVE.X2,4)`
 
 # JIVE analyses
 ## ProJIVE
@@ -269,13 +264,8 @@ TotVE.X2 = MatVar((JX2 + IX2))/MatVar(blocks[[2]])
 
 ```
 
-Check that values of $R_{Jk}^2$ and $R_{Ik}^2$ in the simulated data match the desired quantities.
-```{r, echo = FALSE}
-bquote(paste(R[J1]^2, '=' , .(round(JVE.X1,4))))
-bquote(paste(R[J2]^2, '=' , .(round(JVE.X2,4))))
-bquote(paste(R[I1]^2, '=' , .(round(IVE.X1,4))))
-bquote(paste(R[I2]^2, '=' , .(round(IVE.X2,4))))
-```
+#### Empirical Variance Explained
+Check that proportions of variance explained in the simulated data match the desired quantities. Empirical quantities of joint variance explained are $R_{J1}^2=$ `r round(JVE.X1,4)` and $R_{J2}^2=$ `r round(JVE.X2,4)`.  For individual variance explained, empirical values are $R_{I1}^2=$ `r round(IVE.X1,4)` and $R_{I2}^2=$ `r round(IVE.X2,4)`
 
 ## CJIVE
 Now, compute the CJIVE solution and graph subject scores and loadings.

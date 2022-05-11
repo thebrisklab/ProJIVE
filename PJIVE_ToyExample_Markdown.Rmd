@@ -67,15 +67,15 @@ In addition to the input parameters defined above, the function "GenerateToyData
 ```{r, echo = TRUE}
 true_signal_ranks = r.J + c(r.I1,r.I2)                          ##true ranks of overall signals
 layout(matrix(1:4, nrow = 2))
-ToyDat = GenerateToyData(n = n, p1=p1, p2=p2, JntVarEx1=JntVarEx1, JntVarEx2=JntVarEx2, 
-                         IndVarEx1 = IndVarEx1, IndVarEx2=IndVarEx2, jnt_rank = r.J,
-                         equal.eig = F, ind_rank1=r.I1, ind_rank2=r.I2, JntVarAdj = T, SVD.plots = T,
+ToyDat = GenerateToyData(n = n, p=c(p1, p2), JntVarEx=c(JntVarEx1, JntVarEx2), 
+                         IndVarEx = c(IndVarEx1, IndVarEx2), jnt_rank = r.J,
+                         equal.eig = F, ind_ranks=c(r.I1, r.I2), JntVarAdj = T, SVD.plots = T,
                          Error = T, print.cor = T, Loads = "Rademacher", Scores = "Gaussian")
 layout(1)
 ```
 
 ```{r, echo = TRUE}
-blocks <- ToyDat[[2]]
+blocks <- ToyDat[["Data Blocks"]]
 
 ##Setup input parameters to use Gavin's EM code
 Y = do.call(cbind, blocks); P = c(p1, p2); Q = c(r.J,r.I1,r.I2)

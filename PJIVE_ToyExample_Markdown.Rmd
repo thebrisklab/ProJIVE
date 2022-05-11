@@ -9,9 +9,13 @@ output:
 This document serves as an illustrative example of JIVE analysis using both Canonical JIVE (i.e. CJIVE which is equivalent to AJIVE given the same joint and individual ranks) and the EM algorithm-based ProJIVE. Details of the ProJIVE model is currently under review for publication. Here, we use simulated (i.e. toy) data to compare. Our data simulation model is outlined in the ProJIVE manuscript. In order to follow along with the analyses presented herein, please make sure to download the files "Functions_for_PJIVE.R" and "Functions_for_CJIVE.R" from our GitHub page github.com/BenjaminRisk/ProJIVE and save it in the same directory as this document. Both the program to simulate data and ProJIVE are currently designed to handle exactly $K \geq 2$ data sets.
 
 ```{r setup, include=FALSE}
+
+require("r.jive")
+require("fields")
+require("extraDistr")
+
 # NOTE: Change the location of 'prog.dir' to the location where you have saved the file 'Functions_to_SimulateData.R'
-# NOTE: Change the location of 'prog.dir' to the location where you have saved the file 'Functions_to_SimulateData.R'
-prog.dir = "H:/My Documents/P-JIVE/Programs/Functions"
+prog.dir = "."
 source(file.path(prog.dir, "Functions_for_CJIVE.R"))
 source(file.path(prog.dir, "Functions_for_PJIVE.R"))
 set.seed(0)
@@ -47,7 +51,7 @@ IndVarEx2 = 0.25
 
 ### The GenerateToyData Function
 In addition to the input parameters defined above, the function "GenerateToyData" has the following parameters: 
-'equal.eig' - logical (TRUE/FALSE), which allows the user to specify whether components within a data-blocks joint (or individual) signal should be equally waited. The default is FALSE
+'equal.eig' - logical (TRUE/FALSE), which allows the user to specify whether components within a data-blocks joint (or individual) signal should be equally weighted. The default is FALSE
 
 'JntVarAdj' - logical (TRUE/FALSE): Specify whether signal matrices should be weighted to achieve the desired proportions of variation attributable to the joint signal
 

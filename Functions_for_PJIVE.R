@@ -6,18 +6,20 @@
 require(rootSolve); require(Matrix); require(ggplot2); require(reshape2); require(fields); require(mvtnorm)
 require(dplyr); require(xtable); require(optimx); require(gplots); require(MASS); require(r.jive); 
 require(extraDistr)
+ajive.dir = "./r_AJIVE/R"
+files= list.files(ajive.dir)
+for (i in files) source(file.path(ajive.dir, i))
 
 ######################################################################################################################
 ###########   Generates 2 Simulated Datasets that follow JIVE Model using binary subject scores   ####################
 ######################################################################################################################
-GenerateToyData <- function(n, p1, p2, JntVarEx1, JntVarEx2, IndVarEx1, IndVarEx2, jnt_rank = 1, equal.eig = F,
-                             ind_rank1 = 2, ind_rank2 = 2, JntVarAdj = T, SVD.plots = T, Error = T, print.cor = T,
-                             Loads = "Rademacher", Scores = "Gaussian_Mixture"){
+GenerateToyData <- function(n, p, JntVarEx, IndVarEx, jnt_rank = 1, equal.eig = F, ind_ranks, JntVarAdj = T, mix.probs = NULL,
+                            SVD.plots = T, Error = T, print.cor = T, Loads = "Rademacher", Scores = "Gaussian_Mixture"){
   
   # Write out both joint and indiv subject scores for both data sets first
   r.J = jnt_rank
-  r.I1 = ind_rank1
-  r.I2 = ind_rank2
+  r.I = ind_ranks
+  K = length(p)
   
   print(paste("Generating Scores from", Scores, "distributions and Loadings from", Loads, "distributions."))
   
@@ -25,143 +27,110 @@ GenerateToyData <- function(n, p1, p2, JntVarEx1, JntVarEx2, IndVarEx1, IndVarEx
   if(Scores=="Binomial"){
     JntScores = matrix(rbinom(n*r.J, size=1, prob=0.2), nrow = n, ncol = r.J)
     
-    b = rbinom(n*(r.I1 + r.I2), size=1, prob=0.4)
+    b = rbinom(n*sum(r.I), size=1, prob=0.4)
     b = 1 - 2*b
-    IndivScores = matrix(b, nrow = n, ncol = (r.I1 + r.I2))
+    IndivScores = matrix(b, nrow = n, ncol = sum(r.I))
   } else if (Scores=="Gaussian_Mixture"){
-    mix.probs = c(0.2, 0.5, 0.3)
-    JointScores.g1 = matrix(rnorm(n*mix.probs[1]*r.J), ncol = r.J)
-    JointScores.g2 = matrix(rnorm(n*mix.probs[2]*r.J, -4, 1), ncol = r.J)
-    JointScores.g3 = matrix(rnorm(n*mix.probs[3]*r.J, 4, 1), ncol = r.J)
-    JntScores = rbind(JointScores.g1, JointScores.g2, JointScores.g3)
+    if(is.null(mix.probs)){mix.probs = c(0.2, 0.5, 0.3)}
+    n.groups = length(mix.probs)
+    n.vals = (n.groups-1)/2 
+    if(is.integer(length(mix.probs)/2)){
+      group.means = c(-4*(n.vals:1),4*(1:n.vals))
+    } else {
+      group.means = c(-4*(n.vals:1),0,4*(1:n.vals))
+    }
     
-    IndivScores = matrix(rnorm(n*(r.I1+r.I2)), nrow = n, ncol = (r.I1 + r.I2))
+    JointScores.groups = list()
+    for(l in 1:length(mix.probs)){JointScores.groups[[l]] = matrix(rnorm(n*mix.probs[l]*r.J, mean = group.means[l]), ncol = r.J)}
+    JntScores = do.call(rbind, JointScores.groups)
+    IndivScores = matrix(rnorm(n*sum(r.I)), nrow = n, ncol = sum(r.I))
   } else if(Scores=="Gaussian"){
     JntScores = matrix(rnorm(n*r.J), ncol = r.J)
-    IndivScores = matrix(rnorm(n*(r.I1+r.I2)), nrow = n, ncol = (r.I1 + r.I2))
+    IndivScores = matrix(rnorm(n*sum(r.I)), nrow = n, ncol = sum(r.I))
   }
-    
+  
   colnames(JntScores) = paste("Jnt Score", 1:r.J)
-  colnames(IndivScores) = c(paste("Ind X Score", 1:r.I1), paste("Ind Y Score", 1:r.I2))
+  IndivScores.names = NULL
+  
+  for(k in 1:K){
+    IndivScores.names = c(IndivScores.names, paste0("Indiv X", k, " Score ", 1:r.I[k]))
+  }
+  colnames(IndivScores) = IndivScores.names
   
   if(print.cor){print("The correlation between subject scores is given by"); print(round(cor(cbind(JntScores, IndivScores)),4))}
   
-  ##############################Define X Dataset##############################
-  if(Loads == "Gaussian"){
-    AdjJntLoad.X = matrix(rnorm(r.J*p1), nrow = r.J, ncol = p1)
-  } else if (Loads == "Fixed"){
-    temp.fcn = function(x){x[sample(round(length(x)/2))] = 1; x}
-    AdjJntLoad.X = matrix(apply(matrix(0, nrow = r.J, ncol = p1), 1, temp.fcn), nrow = r.J)
-  } else if (Loads == "Double_Exp"){
-    AdjLoad.X = matrix(extraDistr::rlaplace(p1*(r.J+r.I1)), nrow = r.J+r.I1)
-    AdjJntLoad.X = AdjLoad.X[1:r.J, , drop = FALSE]
-  } else if (Loads == "Rademacher"){
-    AdjLoad.X = matrix(extraDistr::rsign(p1*(r.J+r.I1)), nrow = r.J+r.I1)
-    AdjJntLoad.X = AdjLoad.X[1:r.J, , drop = FALSE]
-  } 
+  ##############################Define Datasets##############################
+  Jnt.Loads.All = list()
+  Indiv.Loads.All = list()
+  D.J = D.I = list()
+  Noise = Joint.Sigs = Indiv.Sigs = list()
+  Sig.Mats =  Data.Mats = list()
+  temp.fcn = function(x){x[sample(round(length(x)/2))] = 1; x}
   
-  #change relavent scaling of joint components
-  D.J = (equal.eig + 1)*diag(r.J:1) + equal.eig*diag(rep(1,r.J))
-  JX = JntScores%*%sqrt(D.J)%*%AdjJntLoad.X
-  
-  if(SVD.plots){
-    plot(svd(JX)$d, ylab = "Singular Values")
-    title("SVD of Joint Signal from X")
+  for(k in 1:K){
+    if(Loads == "Gaussian"){
+      Jnt.Loads.All[[k]] = matrix(rnorm(r.J*p[k]), nrow = r.J, ncol = p[k])
+    } else if (Loads == "Fixed"){
+      Jnt.Loads.All[[k]] = matrix(apply(matrix(0, nrow = r.J, ncol = p[k]), 1, temp.fcn), nrow = r.J)
+    } else if (Loads == "Double_Exp"){
+      Jnt.Loads.All[[k]] = matrix(rlaplace(p[k]*(r.J)), nrow = r.J)
+    } else if (Loads == "Rademacher"){
+      Jnt.Loads.All[[k]] = matrix(rsign(p[k]*(r.J)), nrow = r.J)
+    } 
+    D.J[[k]] = (equal.eig + 1)*diag(r.J:1) + equal.eig*diag(rep(1,r.J))
+    
+    Joint.Sigs[[k]] = JntScores%*%sqrt(D.J[[k]])%*%Jnt.Loads.All[[k]]
+    
+    if(SVD.plots){
+      plot(svd(Joint.Sigs[[k]])$d, ylab = "Singular Values")
+      title(paste0("SVD of Joint Signal from X", k))
+    }
+    # (k>1)*sum(P[1:(k-1)])+(1:P[k])
+    # temp.IndScores = IndivScores[,grep(paste0("Indiv X", k), colnames(IndivScores))]
+    temp.IndScores = IndivScores[,(k>1)*sum(r.I[1:(k-1)])+(1:r.I[k])]
+    
+    if(Loads == "Gaussian"){
+      Indiv.Loads.All[[k]] = matrix(rnorm(n = p[k]*r.I[k]), nrow = r.I[k], ncol = p[k])
+    } else if (Loads == "Fixed"){
+      temp.fcn = function(x){x[sample(round(length(x)/4))] = 1; x}
+      Indiv.Loads.All[[k]] = matrix(apply(matrix(-1, nrow = r.I[k], ncol = p[k]), 1, temp.fcn), nrow = r.I[k])
+    } else if (Loads == "Double_Exp"){
+      Indiv.Loads.All[[k]] = matrix(rlaplace(p[k]*(r.I[k])), nrow = r.I[k])
+    } else if (Loads == "Rademacher"){
+      Indiv.Loads.All[[k]] = matrix(rsign(p[k]*(r.I[k])), nrow = r.I[k])
+    } 
+    
+    D.I[[k]] = (equal.eig + 1)*diag(r.I[k]:1) + equal.eig*diag(rep(1,r.I[k]))
+    
+    Indiv.Sigs[[k]] = temp.IndScores%*%sqrt(D.I[[k]])%*%Indiv.Loads.All[[k]]
+    
+    if(SVD.plots){
+      plot(svd(Indiv.Sigs[[k]])$d, ylab = "Singular Values")
+      title(paste0("SVD of Individual Signal from X", k))
+    }
+    
+    Sig.Mats[[k]] = Joint.Sigs[[k]] + Indiv.Sigs[[k]]
+    
+    Noise[[k]] = matrix(rnorm(n*p[k]), nrow  = n)
+    
+    Data.Mats[[k]] = AdjSigVarExp(Joint.Sigs[[k]], Indiv.Sigs[[k]], Noise[[k]],
+                                  JntVarEx[k], IndVarEx[k])
+    
+    Joint.Sigs[[k]] = Data.Mats[[k]]$J
+    Indiv.Sigs[[k]] = Data.Mats[[k]]$I
   }
   
-  ##Note that the individual signal has rank = 2 as well
-  IndScores.X = IndivScores[,1:r.I1]
-  IndLoad.X = matrix(rnorm(n = p1*r.I1), nrow = r.I1, ncol = p1)
-  if(Loads == "Gaussian"){
-    IndLoad.X = matrix(rnorm(n = p1*r.I1), nrow = r.I1, ncol = p1)
-  } else if (Loads == "Fixed"){
-    temp.fcn = function(x){x[sample(round(length(x)/4))] = 1; x}
-    IndLoad.X = matrix(apply(matrix(-1, nrow = r.I1, ncol = p1), 1, temp.fcn), nrow = r.I1)
-  } else if (Loads == "Double_Exp"){
-    IndLoad.X = AdjLoad.X[-(1:r.J), , drop = FALSE]
-  } else if (Loads == "Rademacher"){
-    IndLoad.X = AdjLoad.X[-(1:r.J), ,drop = FALSE]
-  } 
-  D.IX = (equal.eig + 1)*diag((r.I1:1)) + equal.eig*diag(rep(1,r.I1))
+  Blocks = lapply(Data.Mats, function(x) x[["Data"]])
   
-  IX = IndScores.X%*%sqrt(D.IX)%*%IndLoad.X
+  Dat.Comps = list(Joint.Sigs, Indiv.Sigs, Noise)
+  names(Dat.Comps) = c("JointSignalMatrices", "IndivSignalMatrices", "NoiseMatrices")
   
-  if(SVD.plots){
-    plot(svd(IX)$d, ylab = "Singular Values")
-    title("SVD of Individual Signal from X")
-  }
+  Scores = list(JntScores, IndivScores)
+  names(Scores) = c("Joint", "Indiv")
   
-  AX = JX + IX
-  
-  ##############################Define Y Dataset##############################
-  if(Loads == "Gaussian"){
-    AdjJntLoad.Y = matrix(rnorm(r.J*p2), nrow = r.J, ncol = p2)
-  } else if (Loads == "Fixed"){
-    temp.fcn = function(x){x[sample(round(length(x)/2))] = 2; x}
-    AdjJntLoad.Y = matrix(apply(matrix(1, nrow = r.J, ncol = p2), 1, temp.fcn), nrow = r.J)
-  } else if (Loads == "Double_Exp"){
-    AdjLoad.Y = matrix(extraDistr::rlaplace(p2*(r.J+r.I2)), nrow = r.J+r.I2)
-    AdjJntLoad.Y = AdjLoad.Y[1:r.J, , drop = FALSE]
-  } else if (Loads == "Rademacher"){
-    AdjLoad.Y = matrix(extraDistr::rsign(p2*(r.J+r.I2)), nrow = r.J+r.I2)
-    AdjJntLoad.Y = AdjLoad.Y[1:r.J, , drop = FALSE]
-  } 
-  
-  ##Note that the joint signal has rank = 3
-  JY = JntScores%*%sqrt(D.J)%*%AdjJntLoad.Y
-  
-  if(SVD.plots){
-    plot(svd(JY)$d, ylab = "Singular Values")
-    title("SVD of Joint Signal from Y")
-  }
-  
-  IndScores.Y = IndivScores[,(r.I1 + 1:r.I2)]
-  IndLoad.Y = matrix(rnorm(n = p2*r.I1), nrow = r.I1, ncol = p2)
-  if(Loads == "Gaussian"){
-    IndLoad.Y = matrix(rnorm(n = p2*r.I1), nrow = r.I1, ncol = p2)
-  } else if (Loads == "Fixed"){
-    temp.fcn = function(x){x[sample(round(length(x)/4))] = 1; x}
-    IndLoad.Y = matrix(apply(matrix(-1, nrow = r.I2, ncol = p2), 1, temp.fcn), nrow = r.I2)
-  } else if (Loads == "Double_Exp"){
-    IndLoad.Y = AdjLoad.Y[-(1:r.J), , drop = FALSE]
-  } else if (Loads == "Rademacher"){
-    IndLoad.Y = AdjLoad.Y[-(1:r.J), ,drop = FALSE]
-  } 
-  D.IY = (equal.eig + 1)*diag((r.I2:1)) + equal.eig*diag(rep(1,r.I2)) 
-  
-  ##Note that the individual signal has rank=2
-  IY = IndScores.Y%*%sqrt(D.IY)%*%IndLoad.Y
-  
-  if(SVD.plots){
-    plot(svd(IY)$d, ylab = "Singular Values")
-    title("SVD of Individual Signal from Y")
-  }
-  
-  ##Error matrix
-  EX = matrix(rnorm(n*p1), nrow=n, ncol=p1)*Error
-  
-  ##Error matrix
-  EY = matrix(rnorm(n*p2), nrow=n, ncol=p2)*Error
-  
-  Dat.X = AdjSigVarExp(JX, IX, EX, JntVarEx1, IndVarEx1)
-  JX = Dat.X$J
-  IX = Dat.X$I
-  
-  Dat.Y = AdjSigVarExp(JY, IY, EY, JntVarEx2, IndVarEx2)
-  JY = Dat.Y$J
-  IY = Dat.Y$I
-  
-  Blocks = list(Dat.X[["Data"]], Dat.Y[["Data"]])
-  
-  Dat.Comps = list(JX, JY, IX, IY, EX, EY)
-  names(Dat.Comps) = c("J1", "J2", "I1", "I2", "E1", "E2" )
-  
-  Scores = list(JntScores, IndScores.X, IndScores.Y)
-  names(Scores) = c("Joint", "Indiv_1", "Indiv_2")
-  
-  Loadings = list(sqrt(D.J)%*%AdjJntLoad.X, sqrt(D.IX)%*%IndLoad.X, 
-                  sqrt(D.J)%*%AdjJntLoad.Y, sqrt(D.IY)%*%IndLoad.Y)
-  names(Loadings) = c("Joint_1", "Indiv_1", "Joint_2", "Indiv_2")
+  Loadings = list(mapply(function(x,y) x%*%y, D.J, Jnt.Loads.All), 
+                  mapply(function(x,y) x%*%y, D.I, Indiv.Loads.All))
+  names(Loadings) = c("Joint", "Indiv")
   
   out = list(Dat.Comps, Blocks, Scores, Loadings)
   names(out) = c("Data Components", "Data Blocks", "Scores", "Loadings")
@@ -464,13 +433,16 @@ ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,plots=TRUE,chord.tol=-1,s
   } else if (is.list(init.loads)){
     WJ = init.loads[[1]]
     WI = init.loads[[2]]
-  } else if(init.loads == "CJIVE"){
-    dat.blocks=list(Y[,1:P[1]],Y[,P[1]+(1:P[2])])
-    cjive.solution = cc.jive(dat.blocks = dat.blocks, signal.ranks = Q[1]+Q[-1], 
-                             joint.rank = Q[1], perm.test = FALSE)
+  } else if(init.loads == "AJIVE"){
+    dat.blocks = list()
+    dat.blocks[[1]] = Y[,1:P[1]]
+    for(k in 2:K){
+      dat.blocks[[k]] = Y[,cumsum(P[k-1])+(1:P[k])]
+    }
+    ajive.solution = ajive(dat.blocks, initial_signal_ranks = Q[1]+Q[-1], joint_rank = Q[1])
     
-    WJ = lapply(cjive.solution$sJIVE$joint_matrices, function(x) x$v)
-    WI =lapply(cjive.solution$sJIVE$indiv_matrices, function(x) x$v)
+    WJ = lapply(ajive.solution$block_decomps, function(x) x$joint$v)
+    WI = lapply(ajive.solution$block_decomps, function(x) x$individual$v)
   }
   
   # Block specific loading matrices W_k

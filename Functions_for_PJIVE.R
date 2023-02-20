@@ -39,7 +39,6 @@ GenerateToyData <- function(n, p, JntVarEx, IndVarEx, jnt_rank = 1, equal.eig = 
     } else {
       group.means = c(-4*(n.vals:1),0,4*(1:n.vals))
     }
-    
     JointScores.groups = list()
     for(l in 1:length(mix.probs)){JointScores.groups[[l]] = matrix(rnorm(n*mix.probs[l]*r.J, mean = group.means[l]), ncol = r.J)}
     JntScores = do.call(rbind, JointScores.groups)

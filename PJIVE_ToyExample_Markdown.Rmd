@@ -23,8 +23,8 @@ Input parameters for generating data include the following quantities: $n$ - num
 n = 500
 
 # Number of features per block (input as a vector)
-p1 = 30
-p2 = 50 
+p1 = 750
+p2 = 250 
 
 # Joint Rank 
 r.J = 1
@@ -123,7 +123,7 @@ Check that proportions of variance explained in the simulated data match the des
 Now, compute the ProJIVE solution and graph joint subject scores (not individual scores) in addition to joint and individual loadings. The ProJIVE algorithm requires an initial guess for the noise variances and the variable loadings. By default, these values are chosen at random from Gaussian distributions. The initial values can also be chosen by the user. Initial noise error variances can be entered as a vector of length $K$ and initial loadings as a list of length $K$ with the $k^{th}$ entry as a $p_k \times (r_J + r_{Ik})$ matrix of real numbers. Alternatively, we recommend the settings below. A user can initialize the noise variances at their MLE from the probabilistic model of principal components analysis (attributed to Tipping and Bishop) by setting 'sig_hat = "MLE"' and variable loadings at their AJIVE (i.e. CJIVE for $K=2$) solution with 'init.loads = "AJIVE"'. Lastly, ProJIVE automatically generates graphs of congvergence criterion for each iteration of the EM algorithm. These can be turned off by specifying 'plots = FALSE' in the ProJIVE call.   
 ```{r, echo = TRUE}
 ##### ProJIVE
-PJIVE.res = ProJIVE_EM(Y=Y, P=P, Q=Q, Max.iter=10000, diff.tol=1e-7, sig_hat = "MLE", init.loads = "AJIVE")
+PJIVE.res = ProJIVE_EM(Y=Y, P=P, Q=Q, Max.iter=100, diff.tol=1e-7, sig_hat = "MLE", init.loads = "AJIVE", plots = T)
 
 PJIVE.scores = PJIVE.res$SubjectScoreMatrix
 PJIVE.loads.X1 = PJIVE.res$LoadingMatrix[1:p1,-(sum(Q):(sum(Q[-3])+1))]

@@ -9,9 +9,17 @@
 ###                I discovered that the solutions are remarkably consistent and symmetric if CJIVE (i.e. AJIVE) loadings are
 ###                 used to initiate the EM algorithm. I will run simulations again with, but this time initiating loadings at  
 ###                 at the CJIVE/AJIVE solution and error variances at their pPCA MLEs
-
+###
+### 29NOV2022: Updating simulation study to include dCCA as a competing method. Note: this version of dCCA has been modified 
+###                to NOT include all of the rank choice methods discussed in their paper. Instead, we force the joint rank to 
+###                it's true value and the total signal rank to it's true value
+### 06DEC2022: R version of dCCA (programed by RJM) did not seem to work properly. Updating this script to use the Python version
+###                programmed by the authors article and available on their GitHub page (https://github.com/shu-hai/D-CCA/blob/master/dcca.py)
+###                via the 'reticulate' R package. 
+### 25JAN2023: Including PMSE (Permutation-invariant mean squared error) as a measure of estimation accuracy.See Risk, Matterson, and Rupert 2019
+### 31JAN2023: Added "drop = FALSE" for subsetting columns of score and loading matrices with ranks is 1. 
+###             This helps to ensure that PMSE is calculated and doesn't cause the entire simulation to fail
 #############################################################################################################################
-
 args = commandArgs(trailingOnly=TRUE)
 # args = args[-1]
 args
@@ -32,20 +40,23 @@ r.I2 = 2
 
 nm = paste("sim_", JntVarEx1, "_", JntVarEx2, rep_number, ".csv", sep="")
 if (!(nm %in% files)){
-  library(r.jive) 
+  
+  library(r.jive); library(reticulate); library(CJIVE); library(singR)
   prog.dir = "/home/rmurden/PJIVE/Programs"
   prog.gipca.dir = "/home/rmurden/PJIVE/Programs/GeneralizedIntegrativePCA-master/Functions"
+  prog.dcca.dir = "/projects/guo_lab/cbis/users/raphiel/PJIVE/Programs/D-CCA"
   files= list.files(file.path(prog.dir, "R"))
   for (i in files) source(file.path(prog.dir, 'R', i))
   source(file.path(prog.dir, "Functions_for_PJIVE.R"))
-  source(file.path(prog.dir, "Functions_for_CJIVE.R"))
+  source_python(file.path(prog.dcca.dir, "dcca_given.py"))
+  
   gipca.files = list.files(prog.gipca.dir,full.names = TRUE)
-  lapply(gipca.files, source)
+  for(i in gipca.files) source(i)
   
   TIME = Sys.time()
   
   #######################################################################
-  print(paste0("Is rep_number=",rep_number," an integer? ",is.integer(rep_number)))
+  print(paste0("Is rep_number=",rep_number," an double? ",is.double(rep_number)))
   set.seed(round(rep_number)) ##To ensure that any randomized processes give the same results each time
   ###Construct Datasets
   #####Add noise to already generated Joint and individual signal matrices for X, Y data blocks:
@@ -53,47 +64,52 @@ if (!(nm %in% files)){
   #######JIVE Implementations for Toy Data No 1################################################################################
   ###Setup input parameters for JIVE implementations
   true_signal_ranks = r.J + c(r.I1,r.I2)                          ##true jranks of overall signals
-  ToyDat = GenerateToyData(n = n, p1 = p1, p2 = p2, JntVarEx1 = JntVarEx1, JntVarEx2 = JntVarEx2, 
-                           IndVarEx1 = IndVarEx1, IndVarEx2 =  IndVarEx2, jnt_rank = r.J,
-                           equal.eig = F,ind_rank1 = r.I1, ind_rank2 = r.I2, JntVarAdj = T, SVD.plots = F,
+  # ToyDat = GenerateToyData(n = n, p1 = p1, p2 = p2, JntVarEx1 = JntVarEx1, JntVarEx2 = JntVarEx2, 
+  #                          IndVarEx1 = IndVarEx1, IndVarEx2 =  IndVarEx2, jnt_rank = r.J,
+  #                          equal.eig = F,ind_rank1 = r.I1, ind_rank2 = r.I2, JntVarAdj = T, SVD.plots = F,
+  #                          Error = T, print.cor = F, Loads = "Gaussian", Scores = "Gaussian_Mixture")
+  ToyDat = GenerateToyData(n = n, p = c(p1, p2), JntVarEx = c(JntVarEx1, JntVarEx2), 
+                           IndVarEx = c(IndVarEx1, IndVarEx2), jnt_rank = r.J,
+                           equal.eig = F, ind_ranks = c(r.I1, r.I2), JntVarAdj = T, SVD.plots = F,
                            Error = T, print.cor = F, Loads = "Rademacher", Scores = "Gaussian_Mixture")
   
   blocks <- lapply(ToyDat[[2]], scale)
   rnd.smp = sample(n, n/2)
   blocks.sub1 = lapply(blocks, function(x){x[rnd.smp,]})
   blocks.sub2 = lapply(blocks, function(x){x[-rnd.smp,]})
-  blocks.t <- lapply(blocks,t)   ##iJIVE requires datasets organized as p-by-n matrices
-  JntScores = ToyDat[['Scores']][['Joint']]
-  IndivScore.X = ToyDat[['Scores']][["Indiv_1"]]
-  IndivScore.Y = ToyDat[['Scores']][["Indiv_2"]]
+  blocks.t <- lapply(blocks,t)   ##iJIVE and dCCA requires datasets organized as p-by-n matrices
+  JntScores = as.matrix(ToyDat[['Scores']][['Joint']], nrow = n)
+  IndivScore.X = ToyDat[['Scores']]$Indiv[,1:r.I1, drop = FALSE]
+  IndivScore.Y = ToyDat[['Scores']]$Indiv[,r.I1+(1:r.I2), drop = FALSE]
   
-  JntLd.X = t(ToyDat[['Loadings']][["Joint_1"]])
-  JntLd.Y = t(ToyDat[['Loadings']][["Joint_2"]])
-  IndivLd.X =t(ToyDat[['Loadings']][["Indiv_1"]])
-  IndivLd.Y = t(ToyDat[['Loadings']][["Indiv_2"]])
+  JntLd.X = t(ToyDat[['Loadings']][["Joint"]][[1]])
+  JntLd.Y = t(ToyDat[['Loadings']][["Joint"]][[2]])
+  IndivLd.X =t(ToyDat[['Loadings']][["Indiv"]][[1]])
+  IndivLd.Y = t(ToyDat[['Loadings']][["Indiv"]][[2]])
   
-  JX = ToyDat[[1]]$J1
-  JY = ToyDat[[1]]$J2
-  IX = ToyDat[[1]]$I1
-  IY = ToyDat[[1]]$I2
-  EX = ToyDat[[1]]$E1
-  EY = ToyDat[[1]]$E2
+  JX = ToyDat$`Data Components`$JointSignalMatrices[[1]]
+  JY = ToyDat$`Data Components`$JointSignalMatrices[[2]]
+  IX = ToyDat$`Data Components`$IndivSignalMatrices[[1]]
+  IY = ToyDat$`Data Components`$IndivSignalMatrices[[2]]
+  EX = ToyDat$`Data Components`$NoiseMatrices[[1]]
+  EY = ToyDat$`Data Components`$NoiseMatrices[[2]]
   
   AX = JX + IX
   AY = JY + IY
   JntBlock = cbind(JX,JY)
   
   TotVar.X = MatVar(ToyDat[[2]][[1]])
+  
   TotVar.Y = MatVar(ToyDat[[2]][[2]])
   
-  JVE.X = MatVar(JX)/MatVar(ToyDat[[2]][[1]])
-  JVE.Y = MatVar(JY)/MatVar(ToyDat[[2]][[2]])
+  JVE.X = MatVar(JX)/TotVar.X
+  JVE.Y = MatVar(JY)/TotVar.Y
   
-  IVE.X = MatVar(IX)/MatVar(ToyDat[[2]][[1]])
-  IVE.Y = MatVar(IY)/MatVar(ToyDat[[2]][[2]])
+  IVE.X = MatVar(IX)/TotVar.X
+  IVE.Y = MatVar(IY)/TotVar.Y
   
-  TotVE.X = MatVar((JX + IX))/MatVar(ToyDat[[2]][[1]])
-  TotVE.Y = MatVar((JY + IY))/MatVar(ToyDat[[2]][[2]])
+  TotVE.X = MatVar((JX + IX))/TotVar.X
+  TotVE.Y = MatVar((JY + IY))/TotVar.Y
   
   #### Apply R.JIVE methodology
   i.time = system.time({jive.unknown.perm<-jive(blocks.t,rankJ = r.J, rankA = c(true_signal_ranks-r.J), method="given")})
@@ -116,6 +132,10 @@ if (!(nm %in% files)){
     i.jnt.subnorm = chord.norm.diff(JntScores, i.JntScores.hat)
     i.jnt.loadX.norm = chord.norm.diff(JntLd.X, t(i.JX.hat))
     i.jnt.loadY.norm = chord.norm.diff(JntLd.Y, t(i.JY.hat))
+    
+    i.jnt.sub.pmse = pmse.2(standardize = TRUE, S1 = JntScores, S2 = i.JntScores.hat)
+    i.jnt.loadX.pmse = pmse.2(standardize = TRUE, S1 = JntLd.X, S2 = t(i.JX.hat))
+    i.jnt.loadY.pmse = pmse.2(standardize = TRUE, S1 = JntLd.Y, S2 = t(i.JY.hat))
   } else {
     i.JX.hat = jive.unknown.perm$joint[[1]]
     i.JY.hat = jive.unknown.perm$joint[[2]]
@@ -125,7 +145,11 @@ if (!(nm %in% files)){
     i.jnt.subnorm = chord.norm.diff(JntScores, i.JntScores.hat)
     i.jnt.loadX.norm = chord.norm.diff(JntLd.X, i.jnt.loadX)
     i.jnt.loadY.norm = chord.norm.diff(JntLd.Y, i.jnt.loadY)
-  }
+    
+    i.jnt.sub.pmse = pmse.2(standardize = TRUE, S1 = JntScores, S2 = i.JntScores.hat)
+    i.jnt.loadX.pmse = pmse.2(standardize = TRUE, S1 = JntLd.X, S2 = i.jnt.loadX)
+    i.jnt.loadY.pmse = pmse.2(standardize = TRUE, S1 = JntLd.Y, S2 = i.jnt.loadY)
+  } 
   
   i.IX.hat = jive.unknown.perm$individual[[1]]
   i.IY.hat = jive.unknown.perm$individual[[2]]
@@ -139,6 +163,11 @@ if (!(nm %in% files)){
   i.indiv.Y.subnorm = chord.norm.diff(IndivScore.Y, i.bY.hat)
   i.indiv.X.loadnorm = chord.norm.diff(IndivLd.X, i.W.IX.hat)
   i.indiv.Y.loadnorm = chord.norm.diff(IndivLd.Y, i.W.IY.hat)
+  
+  i.indiv.X.sub.pmse = pmse.2(standardize = TRUE, S1 = IndivScore.X, S2 = i.bX.hat)
+  i.indiv.Y.sub.pmse = pmse.2(standardize = TRUE, S1 = IndivScore.Y, S2 = i.bY.hat)
+  i.indiv.X.load.pmse = pmse.2(standardize = TRUE, S1 = IndivLd.X, S2 = i.W.IX.hat)
+  i.indiv.Y.load.pmse = pmse.2(standardize = TRUE, S1 = IndivLd.Y, S2 = i.W.IY.hat)
   
   i.TotVar.X = sum(svd(jive.unknown.perm$data[[1]])[['d']]^2)
   i.TotVar.Y = sum(svd(jive.unknown.perm$data[[2]])[['d']]^2)
@@ -161,6 +190,10 @@ if (!(nm %in% files)){
   a.c.jnt.loadX.norm = chord.norm.diff(JntLd.X, a.c.jnt.loadX)
   a.c.jnt.loadY.norm = chord.norm.diff(JntLd.Y, a.c.jnt.loadY)
   
+  a.c.jnt.sub.pmse = pmse.2(standardize = TRUE, S1 = JntScores, S2 = a.c.JntScores.hat)
+  a.c.jnt.loadX.pmse = pmse.2(standardize = TRUE, S1 = JntLd.X, S2 = a.c.jnt.loadX)
+  a.c.jnt.loadY.pmse = pmse.2(standardize = TRUE, S1 = JntLd.Y, S2 = a.c.jnt.loadY)
+  
   a.c.W.IY.hat = ajive.oracle$block_decomps[[2]][["individual"]][["v"]]
   a.c.W.IX.hat = ajive.oracle$block_decomps[[1]][["individual"]][["v"]]
   a.c.bX.hat = ajive.oracle$block_decomps[[1]][["individual"]][["u"]]
@@ -171,6 +204,11 @@ if (!(nm %in% files)){
   a.c.indiv.X.loadnorm = chord.norm.diff(IndivLd.X, a.c.W.IX.hat)
   a.c.indiv.Y.loadnorm = chord.norm.diff(IndivLd.Y, a.c.W.IY.hat)
   
+  a.c.indiv.X.sub.pmse = pmse.2(standardize = TRUE, S1 = IndivScore.X, S2 = a.c.bX.hat)
+  a.c.indiv.Y.sub.pmse = pmse.2(standardize = TRUE, S1 = IndivScore.Y, S2 = a.c.bY.hat)
+  a.c.indiv.X.load.pmse = pmse.2(standardize = TRUE, S1 = IndivLd.X, S2 = a.c.W.IX.hat)
+  a.c.indiv.Y.load.pmse = pmse.2(standardize = TRUE, S1 = IndivLd.Y, S2 = a.c.W.IY.hat)
+  
   a.c.jnt.VarEx.X = sum(svd(ajive.oracle[["block_decomps"]][[1]]$joint[["full"]])[['d']]^2)/TotVar.X
   a.c.jnt.VarEx.Y = sum(svd(ajive.oracle[["block_decomps"]][[2]]$joint[["full"]])[['d']]^2)/TotVar.Y
   a.c.ind.VarEx.X = sum(svd(ajive.oracle[["block_decomps"]][[1]]$individual[["full"]])[['d']]^2)/TotVar.X
@@ -178,48 +216,102 @@ if (!(nm %in% files)){
   
   #### Apply ProJIVE-Oracle
   Y=do.call(cbind, blocks); P=c(p1, p2); Q=c(r.J,(true_signal_ranks-r.J))
-  pro.true.time = system.time({protrue.jive.res = ProJIVE_EM(Y=Y, P=P, Q=Q, plots = TRUE, sig_hat = "MLE", init.loads = "CJIVE")})
-  print(paste("ProJIVE done in", round(pro.true.time['elapsed'], 3), "sec."))
+  WJ.init = list(JntLd.X, JntLd.Y)
+  WI.init = list(IndivLd.X, IndivLd.Y)
+  init.loads = list(WJ.init, WI.init)
+  pro.oracle.time = system.time({pro.oracle.jive.res = ProJIVE_EM(Y=Y, P=P, Q=Q, plots = TRUE, sig_hat = "MLE", init.loads = init.loads)})
+  print(paste("ProJIVE (with AJIVE initiated Loadings) done in", round(pro.oracle.time['elapsed'], 3), "sec."))
+  
+  #####Retrieve results from pro_Oracle with ranks pre-specified, and inital loadings from CJIVE
+  pro.oracle.rJ = pro.oracle.jive.res$Ranks["Joint"]
+  pro.oracle.r1 = pro.oracle.jive.res$Ranks["Indiv_1"]
+  pro.oracle.r2 = pro.oracle.jive.res$Ranks["Indiv_2"]
+  pro.oracle.JntScores.hat = pro.oracle.jive.res$SubjectScoreMatrix[,1:pro.oracle.rJ, drop = FALSE]
+  pro.oracle.jnt.subnorm = chord.norm.diff(JntScores, pro.oracle.JntScores.hat)
+  pro.oracle.jnt.sub.pmse = pmse.2(standardize = TRUE, S1 = JntScores, S2 = pro.oracle.JntScores.hat)
+  
+  pro.oracle.load.mats = w_to_w_k(pro.oracle.jive.res$LoadingMatrix, P, Q)
+  pro.oracle.jnt.loadX = pro.oracle.load.mats[[1]][,1:pro.oracle.rJ, drop = FALSE]
+  pro.oracle.jnt.loadY = pro.oracle.load.mats[[2]][,1:pro.oracle.rJ, drop = FALSE]
+  pro.oracle.jnt.loadX.norm = chord.norm.diff(JntLd.X, pro.oracle.jnt.loadX)
+  pro.oracle.jnt.loadY.norm = chord.norm.diff(JntLd.Y, pro.oracle.jnt.loadY)
+  pro.oracle.jnt.loadX.pmse = pmse.2(standardize = TRUE, S1 = JntLd.X, S2 = pro.oracle.jnt.loadX)
+  pro.oracle.jnt.loadY.pmse = pmse.2(standardize = TRUE, S1 = JntLd.Y, S2 = pro.oracle.jnt.loadY)
+  
+  pro.oracle.IX.load = pro.oracle.load.mats[[1]][,-(1:pro.oracle.rJ), drop = FALSE]
+  pro.oracle.IY.load = pro.oracle.load.mats[[2]][,-(1:pro.oracle.rJ), drop = FALSE]
+  pro.oracle.bX.hat = pro.oracle.jive.res$SubjectScoreMatrix[,pro.oracle.rJ+(1:pro.oracle.r1), drop = FALSE]
+  pro.oracle.bY.hat = pro.oracle.jive.res$SubjectScoreMatrix[,(pro.oracle.rJ+pro.oracle.r1+(1:pro.oracle.r2)), drop = FALSE]
+  
+  pro.oracle.indiv.X.subnorm = chord.norm.diff(IndivScore.X, pro.oracle.bX.hat)
+  pro.oracle.indiv.Y.subnorm = chord.norm.diff(IndivScore.Y, pro.oracle.bY.hat)
+  pro.oracle.indiv.X.loadnorm = chord.norm.diff(IndivLd.X, pro.oracle.IX.load)
+  pro.oracle.indiv.Y.loadnorm = chord.norm.diff(IndivLd.Y, pro.oracle.IY.load)
+  
+  pro.oracle.indiv.X.sub.pmse = pmse.2(standardize = TRUE, S1 =IndivScore.X, S2 = pro.oracle.bX.hat)
+  pro.oracle.indiv.Y.sub.pmse = pmse.2(standardize = TRUE, S1 =IndivScore.Y, S2 = pro.oracle.bY.hat)
+  pro.oracle.indiv.X.load.pmse = pmse.2(standardize = TRUE, S1 =IndivLd.X, S2 = pro.oracle.IX.load)
+  pro.oracle.indiv.Y.load.pmse = pmse.2(standardize = TRUE, S1 =IndivLd.Y, S2 = pro.oracle.IY.load)
+  
+  pro.oracle.jnt.VarEx.X = pro.oracle.jive.res$VarianceExplained[[1]][1]
+  pro.oracle.jnt.VarEx.Y = pro.oracle.jive.res$VarianceExplained[[2]][1]
+  pro.oracle.ind.VarEx.X = pro.oracle.jive.res$VarianceExplained[[1]][2]
+  pro.oracle.ind.VarEx.Y = pro.oracle.jive.res$VarianceExplained[[2]][2]
+  
+  #### Apply ProJIVE-Init Oracle
+  pro.time = system.time({pro.jive.res = ProJIVE_EM(Y=Y, P=P, Q=Q, plots = TRUE, sig_hat = "MLE", init.loads = "CJIVE")})
+  print(paste("ProJIVE with loadings initiated from the truth done in", round(pro.time['elapsed'], 3), "sec."))
   
   #####Retrieve results from pro_Oracle with ranks not specified: use permutation method to find them
-  pro.rJ = protrue.jive.res$Ranks["Joint"]
-  pro.r1 = protrue.jive.res$Ranks["Indiv_1"]
-  pro.r2 = protrue.jive.res$Ranks["Indiv_2"]
-  pro.JntScores.hat = protrue.jive.res$SubjectScoreMatrix[,1:pro.rJ]
+  pro.rJ = pro.jive.res$Ranks["Joint"]
+  pro.r1 = pro.jive.res$Ranks["Indiv_1"]
+  pro.r2 = pro.jive.res$Ranks["Indiv_2"]
+  pro.JntScores.hat = pro.jive.res$SubjectScoreMatrix[,1:pro.rJ, drop = FALSE]
   pro.jnt.subnorm = chord.norm.diff(JntScores, pro.JntScores.hat)
+  pro.jnt.sub.pmse = pmse.2(standardize = TRUE, S1 = JntScores, S2 = pro.JntScores.hat)
   
-  pro.load.mats = w_to_w_k(protrue.jive.res$LoadingMatrix, P, Q)
-  pro.jnt.loadX = pro.load.mats[[1]][,1:pro.rJ]
-  pro.jnt.loadY = pro.load.mats[[2]][,1:pro.rJ]
+  pro.load.mats = w_to_w_k(pro.jive.res$LoadingMatrix, P, Q)
+  pro.jnt.loadX = pro.load.mats[[1]][,1:pro.rJ, drop = FALSE]
+  pro.jnt.loadY = pro.load.mats[[2]][,1:pro.rJ, drop = FALSE]
   pro.jnt.loadX.norm = chord.norm.diff(JntLd.X, pro.jnt.loadX)
   pro.jnt.loadY.norm = chord.norm.diff(JntLd.Y, pro.jnt.loadY)
+  pro.jnt.loadX.pmse = pmse.2(standardize = TRUE, S1 = JntLd.X, S2 = pro.jnt.loadX)
+  pro.jnt.loadY.pmse = pmse.2(standardize = TRUE, S1 = JntLd.Y, S2 = pro.jnt.loadY)
   
-  pro.IX.load = pro.load.mats[[1]][,-(1:pro.rJ)]
-  pro.IY.load = pro.load.mats[[2]][,-(1:pro.rJ)]
-  pro.bX.hat = protrue.jive.res$SubjectScoreMatrix[,pro.rJ+(1:pro.r1)]
-  pro.bY.hat = protrue.jive.res$SubjectScoreMatrix[,(pro.rJ+pro.r1+(1:pro.r2))]
+  pro.IX.load = pro.load.mats[[1]][,-(1:pro.rJ), drop = FALSE]
+  pro.IY.load = pro.load.mats[[2]][,-(1:pro.rJ), drop = FALSE]
+  pro.bX.hat = pro.jive.res$SubjectScoreMatrix[,pro.rJ+(1:pro.r1), drop = FALSE]
+  pro.bY.hat = pro.jive.res$SubjectScoreMatrix[,(pro.rJ+pro.r1+(1:pro.r2)), drop = FALSE]
   
   pro.indiv.X.subnorm = chord.norm.diff(IndivScore.X, pro.bX.hat)
   pro.indiv.Y.subnorm = chord.norm.diff(IndivScore.Y, pro.bY.hat)
   pro.indiv.X.loadnorm = chord.norm.diff(IndivLd.X, pro.IX.load)
   pro.indiv.Y.loadnorm = chord.norm.diff(IndivLd.Y, pro.IY.load)
   
-  pro.jnt.VarEx.X = protrue.jive.res$VarianceExplained$Joint[1]
-  pro.jnt.VarEx.Y = protrue.jive.res$VarianceExplained$Joint[2]
-  pro.ind.VarEx.X = protrue.jive.res$VarianceExplained$Indiv[1]
-  pro.ind.VarEx.Y = protrue.jive.res$VarianceExplained$Indiv[2]
+  pro.indiv.X.sub.pmse = pmse.2(standardize = TRUE, S1 = IndivScore.X, S2 = pro.bX.hat)
+  pro.indiv.Y.sub.pmse = pmse.2(standardize = TRUE, S1 = IndivScore.Y, S2 = pro.bY.hat)
+  pro.indiv.X.load.pmse = pmse.2(standardize = TRUE, S1 = IndivLd.X, S2 = pro.IX.load)
+  pro.indiv.Y.load.pmse = pmse.2(standardize = TRUE, S1 = IndivLd.Y, S2 = pro.IY.load)
+  
+  pro.jnt.VarEx.X = pro.jive.res$VarianceExplained[[1]][1]
+  pro.jnt.VarEx.Y = pro.jive.res$VarianceExplained[[2]][1]
+  pro.ind.VarEx.X = pro.jive.res$VarianceExplained[[1]][2]
+  pro.ind.VarEx.Y = pro.jive.res$VarianceExplained[[2]][2]
   
   #################    Apply GIPCA      
-  GIPCA.time = system.time({GIPCA.res = EPCAJIVEMissbio(blocks, r.J, c(r.I1,r.I2), D = P, family = rep("gaussian",2), tol = 1E-5)})
+  GIPCA.time = system.time({GIPCA.res = EPCAJIVEMissbio(blocks, r.J, c(r.I1,r.I2), D = P, family = rep("gaussian",2), tol = 15)})
   print(paste("GIPCA done in", round(GIPCA.time['elapsed'], 3), "sec."))
   
   GIPCA.joint.scores = GIPCA.res$U.joint[,-1, drop = FALSE]
   GI.jnt.subnorm = chord.norm.diff(JntScores, GIPCA.joint.scores)
+  GI.jnt.sub.pmse = pmse.2(standardize = TRUE, S1 = JntScores, S2 = GIPCA.joint.scores)
   
   GIPCA.joint.loads.X = t(GIPCA.res$V.joint[-1,1:P[1], drop = FALSE])
   GIPCA.joint.loads.Y = t(GIPCA.res$V.joint[-1,-(1:P[1]), drop = FALSE])
   GI.jnt.loadX.norm = chord.norm.diff(JntLd.X, GIPCA.joint.loads.X)
   GI.jnt.loadY.norm = chord.norm.diff(JntLd.Y, GIPCA.joint.loads.Y)
+  GI.jnt.loadX.pmse = pmse.2(standardize = TRUE, S1 = JntLd.X, S2 = GIPCA.joint.loads.X)
+  GI.jnt.loadY.pmse = pmse.2(standardize = TRUE, S1 = JntLd.Y, S2 = GIPCA.joint.loads.Y)
   
   GIPCA.bX.hat = GIPCA.res$U.ind[[1]]
   GIPCA.bY.hat = GIPCA.res$U.ind[[2]]
@@ -231,61 +323,59 @@ if (!(nm %in% files)){
   GI.indiv.X.loadnorm = chord.norm.diff(IndivLd.X, GIPCA.indiv.loads.X)
   GI.indiv.Y.loadnorm = chord.norm.diff(IndivLd.Y, GIPCA.indiv.loads.Y)
   
-  # #### Apply CC.Oracle JIVE
-  # cc.true.time = system.time({cctrue.jive.res = cc.jive(blocks, signal.ranks = true_signal_ranks, center = F)})
-  # print(paste("CJIVE done in", round(cc.true.time['elapsed'], 3), "sec."))
-  # 
-  # #####Retrieve results from CC_Oracle with ranks not specified: use permutation method to find them
-  # cc.JntScores.hat = cctrue.jive.res$CanCorRes$Jnt_Scores
-  # cc.jnt.subnorm = chord.norm.diff(JntScores, cc.JntScores.hat)
-  # 
-  # cc.W.JX = cctrue.jive.res$sJIVE$joint_matrices[[1]]$v
-  # cc.W.JY = cctrue.jive.res$sJIVE$joint_matrices[[2]]$v
-  # cc.jnt.loadX.norm = chord.norm.diff(JntLd.X, cc.W.JX)
-  # cc.jnt.loadY.norm = chord.norm.diff(JntLd.Y, cc.W.JY)
-  # 
-  # cc.bX.hat = cctrue.jive.res$sJIVE$indiv_matrices[[1]]$u
-  # cc.bY.hat = cctrue.jive.res$sJIVE$indiv_matrices[[2]]$u
-  # cc.W.IX.hat = cctrue.jive.res$sJIVE$indiv_matrices[[1]]$v
-  # cc.W.IY.hat = cctrue.jive.res$sJIVE$indiv_matrices[[2]]$v
-  # 
-  # cc.indiv.X.subnorm = chord.norm.diff(IndivScore.X, cc.bX.hat)
-  # cc.indiv.Y.subnorm = chord.norm.diff(IndivScore.Y, cc.bY.hat)
-  # cc.indiv.X.loadnorm = chord.norm.diff(IndivLd.X, cc.W.IX.hat)
-  # cc.indiv.Y.loadnorm = chord.norm.diff(IndivLd.Y, cc.W.IY.hat)
-  # 
-  # ######    Predictions     #####
-  # #AJIVE 
-  # AJIVE.res.sub1 = ajive(blocks.sub1, true_signal_ranks, joint_rank = r.J)
-  # a.jnt_score.sub1 = AJIVE.res.sub1$joint_scores
-  # JL.1_sub1 = t(AJIVE.res.sub1$block_decomps[[1]]$joint$full)%*%a.jnt_score.sub1
-  # JL.2_sub1 = t(AJIVE.res.sub1$block_decomps[[2]]$joint$full)%*%a.jnt_score.sub1
-  # JL.1_sub1.ginv = ginv(JL.1_sub1)
-  # JL.2_sub1.ginv = ginv(JL.2_sub1)
-  # a.pred.aJIVE.sub2 = (blocks.sub2[[1]]%*%t(JL.1_sub1.ginv) + blocks.sub2[[2]]%*%t(JL.2_sub1.ginv))/2
-  # 
-  # a.c.pred.cor = diag(cor(a.pred.aJIVE.sub2, JntScores[-rnd.smp,]))
-  # print(paste("AJIVE Prediction done"))
-  # 
-  # #ProJIVE
-  # ProJIVE.res.sub1 = ProJIVE_EM(do.call(cbind, blocks.sub1), P, Q, plots = FALSE)
-  # Load.Mats = w_to_w_k(ProJIVE.res.sub1$LoadingMatrix, P, Q)
-  # LoadMat.1_sub1 = Load.Mats[[1]]
-  # LoadMat.2_sub1 = Load.Mats[[2]]
-  # JL.1_sub1.ginv = ginv(matrix(LoadMat.1_sub1[,1:r.J], ncol=r.J))
-  # JL.2_sub1.ginv = ginv(matrix(LoadMat.2_sub1[,1:r.J], ncol=r.J))
-  # naive.pred.ProJIVE.sub2 = (blocks.sub2[[1]]%*%t(JL.1_sub1.ginv) + blocks.sub2[[2]]%*%t(JL.2_sub1.ginv))/2
-  # 
-  # pro.pred.cor = diag(cor(naive.pred.ProJIVE.sub2, JntScores[-rnd.smp,]))
-  # print(paste("ProJIVE Prediction done"))
+  GI.indiv.X.sub.pmse = pmse.2(standardize = TRUE, S1 = IndivScore.X, S2 = GIPCA.bX.hat)
+  GI.indiv.Y.sub.pmse = pmse.2(standardize = TRUE, S1 = IndivScore.Y, S2 = GIPCA.bY.hat)
+  GI.indiv.X.load.pmse = pmse.2(standardize = TRUE, S1 = IndivLd.X, S2 = GIPCA.indiv.loads.X)
+  GI.indiv.Y.load.pmse = pmse.2(standardize = TRUE, S1 = IndivLd.Y, S2 = GIPCA.indiv.loads.Y)
   
-  #  PredEvals = c(a.c.pred.cor, pro.pred.cor)
-  #  names(PredEvals) = c(paste("AJIVE_Pred_Corr", 1:r.J, sep = ""), paste("ProJIVE_Pred_Corr", 1:r.J, sep = ""))
+  # GIPCA.jnt.VarEx.X = protrue.jive.res$VarianceExplained$Joint[[1]][1]
+  # GIPCA.jnt.VarEx.Y = protrue.jive.res$VarianceExplained$Joint[[2]][1]
+  # GIPCA.ind.VarEx.X = protrue.jive.res$VarianceExplained$Indiv[[1]][2]
+  # GIPCA.ind.VarEx.Y = protrue.jive.res$VarianceExplained$Indiv[[2]][2]
   
-  #  print(paste("Corr. of ProJIVE v AJIVE Scores:" ,
-  #              round(diag(cor(ProJIVE.res.sub1$SubjectScoreMatrix[,1:r.J], AJIVE.res.sub1$joint_scores)),3)))
+  #################    Apply dCCA      
+  dCCA.time = system.time({dCCA.res = dCCA(blocks.t[[1]], blocks.t[[2]], r_1 = as.integer(true_signal_ranks[1]),  r_2 = as.integer(true_signal_ranks[2]), r_12 = as.integer(r.J))})
+  print(paste("dCCA (with reticulate) done in", round(dCCA.time['elapsed'], 3), "sec."))
   
-  CompEvals = c(pro.jnt.subnorm, pro.jnt.loadX.norm, pro.jnt.loadY.norm, pro.indiv.X.subnorm, pro.indiv.Y.subnorm, pro.indiv.X.loadnorm, 
+  dCCA.CX.hat = dCCA.res[[3]]; svd.CX.dcca = svd(dCCA.CX.hat, nu = r.J, nv = r.J)
+  dCCA.CY.hat = dCCA.res[[4]]; svd.CY.dcca = svd(dCCA.CY.hat, nu = r.J, nv = r.J)
+  dCCA.DX.hat = dCCA.res[[5]]; svd.DX.dcca = svd(dCCA.DX.hat, nu = r.I1, nv = r.I1)
+  dCCA.DY.hat = dCCA.res[[6]]; svd.DY.dcca = svd(dCCA.DY.hat, nu = r.I2, nv = r.I2)
+  
+  # dCCA.joint.scores = svd(cbind(svd.CX.dcca$v, svd.CY.dcca$v), nv = r.J, nu = r.J)$u
+  temp.diag = diag((1-sqrt(1 - dCCA.res[[10]])/sqrt(1 + dCCA.res[[10]])), nrow = r.J, ncol = r.J)
+  dCCA.joint.scores = 0.5*(svd.CX.dcca$v+svd.CY.dcca$v)%*%temp.diag; rm(temp.diag)
+  
+  dCCA.jnt.subnorm = chord.norm.diff(JntScores, dCCA.joint.scores)
+  dCCA.jnt.sub.pmse = pmse.2(standardize = TRUE, S1 = JntScores, S2 = dCCA.joint.scores)
+  
+  dCCA.jnt.loadX.norm = chord.norm.diff(JntLd.X, svd.CX.dcca[['u']])
+  dCCA.jnt.loadY.norm = chord.norm.diff(JntLd.Y, svd.CY.dcca[['u']])
+  dCCA.jnt.loadX.pmse = pmse.2(standardize = TRUE, S1 = JntLd.X, S2 = svd.CX.dcca[['u']])
+  dCCA.jnt.loadY.pmse = pmse.2(standardize = TRUE, S1 = JntLd.Y, S2 = svd.CY.dcca[['u']])
+  
+  dCCA.indiv.X.subnorm = chord.norm.diff(IndivScore.X, svd.DX.dcca[['v']])
+  dCCA.indiv.Y.subnorm = chord.norm.diff(IndivScore.Y, svd.DY.dcca[['v']])
+  dCCA.indiv.X.loadnorm = chord.norm.diff(IndivLd.X, svd.DX.dcca[['u']])
+  dCCA.indiv.Y.loadnorm = chord.norm.diff(IndivLd.Y, svd.DY.dcca[['u']])
+  
+  dCCA.indiv.X.sub.pmse = pmse.2(standardize = TRUE, S1 = IndivScore.X, S2 = svd.DX.dcca[['v']])
+  dCCA.indiv.Y.sub.pmse = pmse.2(standardize = TRUE, S1 = IndivScore.Y, S2 = svd.DY.dcca[['v']])
+  dCCA.indiv.X.load.pmse = pmse.2(standardize = TRUE, S1 = IndivLd.X, S2 = svd.DX.dcca[['u']])
+  dCCA.indiv.Y.load.pmse = pmse.2(standardize = TRUE, S1 = IndivLd.Y, S2 = svd.DY.dcca[['u']])
+  
+  dCCA.TotVE.X = MatVar(dCCA.res[[1]])/TotVar.X
+  dCCA.TotVE.Y = MatVar(dCCA.res[[2]])/TotVar.Y
+  dCCA.jnt.VarEx.X = MatVar(dCCA.CX.hat)/TotVar.X
+  dCCA.jnt.VarEx.Y = MatVar(dCCA.CY.hat)/TotVar.Y
+  dCCA.ind.VarEx.X = MatVar(dCCA.DX.hat)/TotVar.X
+  dCCA.ind.VarEx.Y = MatVar(dCCA.DY.hat)/TotVar.Y
+  
+  
+  CompEvals = c(pro.oracle.jnt.subnorm, pro.oracle.jnt.loadX.norm, pro.oracle.jnt.loadY.norm, pro.oracle.indiv.X.subnorm, pro.oracle.indiv.Y.subnorm, pro.oracle.indiv.X.loadnorm, 
+                pro.oracle.indiv.Y.loadnorm,
+                
+                pro.jnt.subnorm, pro.jnt.loadX.norm, pro.jnt.loadY.norm, pro.indiv.X.subnorm, pro.indiv.Y.subnorm, pro.indiv.X.loadnorm, 
                 pro.indiv.Y.loadnorm,
                 
                 a.c.jnt.subnorm, a.c.jnt.loadX.norm, a.c.jnt.loadY.norm, a.c.indiv.X.subnorm, a.c.indiv.Y.subnorm, a.c.indiv.X.loadnorm, 
@@ -295,45 +385,93 @@ if (!(nm %in% files)){
                 i.indiv.Y.loadnorm,
                 
                 GI.jnt.subnorm, GI.jnt.loadX.norm, GI.jnt.loadY.norm, GI.indiv.X.subnorm, GI.indiv.Y.subnorm, GI.indiv.X.loadnorm, 
-                GI.indiv.Y.loadnorm)
+                GI.indiv.Y.loadnorm,
+                
+                dCCA.jnt.subnorm, dCCA.jnt.loadX.norm, dCCA.jnt.loadY.norm, dCCA.indiv.X.subnorm, dCCA.indiv.Y.subnorm, dCCA.indiv.X.loadnorm, 
+                dCCA.indiv.Y.loadnorm, 
+                
+                pro.oracle.jnt.sub.pmse, pro.oracle.jnt.loadX.pmse, pro.oracle.jnt.loadY.pmse, pro.oracle.indiv.X.sub.pmse, pro.oracle.indiv.Y.sub.pmse, pro.oracle.indiv.X.load.pmse, 
+                pro.oracle.indiv.Y.load.pmse,
+                
+                pro.jnt.sub.pmse, pro.jnt.loadX.pmse, pro.jnt.loadY.pmse, pro.indiv.X.sub.pmse, pro.indiv.Y.sub.pmse, pro.indiv.X.load.pmse, 
+                pro.indiv.Y.load.pmse,
+                
+                a.c.jnt.sub.pmse, a.c.jnt.loadX.pmse, a.c.jnt.loadY.pmse, a.c.indiv.X.sub.pmse, a.c.indiv.Y.sub.pmse, a.c.indiv.X.load.pmse, 
+                a.c.indiv.Y.load.pmse,
+                
+                i.jnt.sub.pmse, i.jnt.loadX.pmse, i.jnt.loadY.pmse, i.indiv.X.sub.pmse, i.indiv.Y.sub.pmse, i.indiv.X.load.pmse, 
+                i.indiv.Y.load.pmse,
+                
+                GI.jnt.sub.pmse, GI.jnt.loadX.pmse, GI.jnt.loadY.pmse, GI.indiv.X.sub.pmse, GI.indiv.Y.sub.pmse, GI.indiv.X.load.pmse, 
+                GI.indiv.Y.load.pmse,
+                
+                dCCA.jnt.sub.pmse, dCCA.jnt.loadX.pmse, dCCA.jnt.loadY.pmse, dCCA.indiv.X.sub.pmse, dCCA.indiv.Y.sub.pmse, dCCA.indiv.X.load.pmse, 
+                dCCA.indiv.Y.load.pmse)
   
-  names(CompEvals) = c("ProJIVE Joint Subj Scores", "ProJIVE Joint Loads X", "ProJIVE Joint Loads Y", "ProJIVE Indiv Subj Scores X",
-                       "ProJIVE Indiv Subj Scores Y", "ProJIVE Indiv Loads X", "ProJIVE Indiv Loads Y",
+  names(CompEvals) = c("ProJIVE - Oracle Joint Subj Scores- Norm", "ProJIVE - Oracle Joint Loads X- Norm", "ProJIVE - Oracle Joint Loads Y- Norm", "ProJIVE - Oracle Indiv Subj Scores X- Norm",
+                       "ProJIVE - Oracle Indiv Subj Scores Y- Norm", "ProJIVE - Oracle Indiv Loads X- Norm", "ProJIVE - Oracle Indiv Loads Y- Norm",
                        
-                       "AJIVE-Oracle Joint Subj Scores", "AJIVE-Oracle Joint Loads X", "AJIVE-Oracle Joint Loads Y", "AJIVE-Oracle Indiv Subj Scores X",
-                       "AJIVE-Oracle Indiv Subj Scores Y", "AJIVE-Oracle Indiv Loads X", "AJIVE-Oracle Indiv Loads Y",
+                       "ProJIVE Joint Subj Scores- Norm", "ProJIVE Joint Loads X- Norm", "ProJIVE Joint Loads Y- Norm", "ProJIVE Indiv Subj Scores X- Norm",
+                       "ProJIVE Indiv Subj Scores Y- Norm", "ProJIVE Indiv Loads X- Norm", "ProJIVE Indiv Loads Y- Norm",
                        
-                       "R.JIVE Joint Subj Scores", "R.JIVE Joint Loads X", "R.JIVE Joint Loads Y", "R.JIVE Indiv Subj Scores X",
-                       "R.JIVE Indiv Subj Scores Y", "R.JIVE Indiv Loads X", "R.JIVE Indiv Loads Y",
+                       "AJIVE Joint Subj Scores- Norm", "AJIVE Joint Loads X- Norm", "AJIVE Joint Loads Y- Norm", "AJIVE Indiv Subj Scores X- Norm",
+                       "AJIVE Indiv Subj Scores Y- Norm", "AJIVE Indiv Loads X- Norm", "AJIVE Indiv Loads Y- Norm",
                        
-                       "GIPCA Joint Subj Scores", "GIPCA Joint Loads X", "GIPCA Joint Loads Y", "GIPCA Indiv Subj Scores X",
-                       "GIPCA Indiv Subj Scores Y", "GIPCA Indiv Loads X", "GIPCA Indiv Loads Y")
-  
+                       "R.JIVE Joint Subj Scores- Norm", "R.JIVE Joint Loads X- Norm", "R.JIVE Joint Loads Y- Norm", "R.JIVE Indiv Subj Scores X- Norm",
+                       "R.JIVE Indiv Subj Scores Y- Norm", "R.JIVE Indiv Loads X- Norm", "R.JIVE Indiv Loads Y- Norm",
+                       
+                       "GIPCA Joint Subj Scores- Norm", "GIPCA Joint Loads X- Norm", "GIPCA Joint Loads Y- Norm", "GIPCA Indiv Subj Scores X- Norm",
+                       "GIPCA Indiv Subj Scores Y- Norm", "GIPCA Indiv Loads X- Norm", "GIPCA Indiv Loads Y- Norm",
+                       
+                       "dCCA Joint Subj Scores- Norm", "dCCA Joint Loads X- Norm", "dCCA Joint Loads Y- Norm", "dCCA Indiv Subj Scores X- Norm",
+                       "dCCA Indiv Subj Scores Y- Norm", "dCCA Indiv Loads X- Norm", "dCCA Indiv Loads Y- Norm", 
+                       
+                       "ProJIVE - Oracle Joint Subj Scores- PMSE", "ProJIVE - Oracle Joint Loads X- PMSE", "ProJIVE - Oracle Joint Loads Y- PMSE", "ProJIVE - Oracle Indiv Subj Scores X- PMSE",
+                       "ProJIVE - Oracle Indiv Subj Scores Y- PMSE", "ProJIVE - Oracle Indiv Loads X- PMSE", "ProJIVE - Oracle Indiv Loads Y- PMSE",
+                       
+                       "ProJIVE Joint Subj Scores- PMSE", "ProJIVE Joint Loads X- PMSE", "ProJIVE Joint Loads Y- PMSE", "ProJIVE Indiv Subj Scores X- PMSE",
+                       "ProJIVE Indiv Subj Scores Y- PMSE", "ProJIVE Indiv Loads X- PMSE", "ProJIVE Indiv Loads Y- PMSE",
+                       
+                       "AJIVE Joint Subj Scores- PMSE", "AJIVE Joint Loads X- PMSE", "AJIVE Joint Loads Y- PMSE", "AJIVE Indiv Subj Scores X- PMSE",
+                       "AJIVE Indiv Subj Scores Y- PMSE", "AJIVE Indiv Loads X- PMSE", "AJIVE Indiv Loads Y- PMSE",
+                       
+                       "R.JIVE Joint Subj Scores- PMSE", "R.JIVE Joint Loads X- PMSE", "R.JIVE Joint Loads Y- PMSE", "R.JIVE Indiv Subj Scores X- PMSE",
+                       "R.JIVE Indiv Subj Scores Y- PMSE", "R.JIVE Indiv Loads X- PMSE", "R.JIVE Indiv Loads Y- PMSE",
+                       
+                       "GIPCA Joint Subj Scores- PMSE", "GIPCA Joint Loads X- PMSE", "GIPCA Joint Loads Y- PMSE", "GIPCA Indiv Subj Scores X- PMSE",
+                       "GIPCA Indiv Subj Scores Y- PMSE", "GIPCA Indiv Loads X- PMSE", "GIPCA Indiv Loads Y- PMSE",
+                       
+                       "dCCA Joint Subj Scores- PMSE", "dCCA Joint Loads X- PMSE", "dCCA Joint Loads Y- PMSE", "dCCA Indiv Subj Scores X- PMSE",
+                       "dCCA Indiv Subj Scores Y- PMSE", "dCCA Indiv Loads X- PMSE", "dCCA Indiv Loads Y- PMSE")
   VarEx.true = c(JVE.X, JVE.Y, IVE.X, IVE.Y, TotVE.X, TotVE.Y)
   VarEx.ajive = c(a.c.jnt.VarEx.X, a.c.jnt.VarEx.Y, a.c.ind.VarEx.X, a.c.ind.VarEx.Y)
   VarEx.rjive = c(i.jnt.VarEx.X, i.jnt.VarEx.Y, i.ind.VarEx.X, i.ind.VarEx.Y)
   VarEx.projive = c(pro.jnt.VarEx.X, pro.jnt.VarEx.Y, pro.ind.VarEx.X, pro.ind.VarEx.Y)
+  VarEx.pro.oracle = c(pro.oracle.jnt.VarEx.X, pro.oracle.jnt.VarEx.Y, pro.oracle.ind.VarEx.X, pro.oracle.ind.VarEx.Y)
+  VarEx.dCCA = c(dCCA.jnt.VarEx.X, dCCA.jnt.VarEx.Y, dCCA.ind.VarEx.X, dCCA.ind.VarEx.Y)
   
   names(VarEx.true) = c("JointVarExp_X", "JointVarExp_Y", "IndivVarExp_X", "IndivVarExp_Y", 
                         "TotalVarExp_X",  "TotalVarExp_Y")
   
-  VarEx = c(VarEx.true, VarEx.ajive, VarEx.rjive, VarEx.projive)
+  VarEx = c(VarEx.true, VarEx.ajive, VarEx.rjive, VarEx.projive, VarEx.pro.oracle, VarEx.dCCA)
   names(VarEx) = c(paste0("True_", names(VarEx.true)), 
                    paste0("AJIVE_", names(VarEx.true)[1:4]),
                    paste0("RJIVE_", names(VarEx.true)[1:4]),
-                   paste0("ProJIVE_", names(VarEx.true)[1:4]))
+                   paste0("ProJIVE_", names(VarEx.true)[1:4]),
+                   paste0("ProJIVE_Oracle_", names(VarEx.true)[1:4]),
+                   paste0("dCCA", names(VarEx.true)[1:4]))
+  
   total_time = Sys.time() - TIME
   
-  # out = c(VarEx, CompEvals, PredEvals, total_time['elapsed'],i.time['elapsed'],a.c.time['elapsed'], pro.true.time['elapsed'])
-  out = c(VarEx, CompEvals, total_time['elapsed'],i.time['elapsed'],a.c.time['elapsed'], pro.true.time['elapsed'], GIPCA.time['elapsed'])
-  # names(out) = c(names(VarEx), names(CompEvals), names(PredEvals), "Total_Time", "R.JIVE_Time", 
-  #                "CC_Oracle_Time", "ProJIVE_Time", "GIPCA_Time")
+  out = c(VarEx, CompEvals, total_time['elapsed'],i.time['elapsed'],a.c.time['elapsed'], pro.time['elapsed'], pro.oracle.time['elapsed'], 
+          GIPCA.time['elapsed'], dCCA.time['elapsed'])
+  
   names(out) = c(names(VarEx), names(CompEvals),"Total_Time", "R.JIVE_Time", 
-                 "AJIVE_Time", "ProJIVE_Time", "GIPCA_Time")
+                 "AJIVE_Time", "ProJIVE_Time", "OracleProJIVE_Time", "GIPCA_Time", "dCCA_Time")
   
   fname = file.path(outdir, paste("sim_", JntVarEx1, "_", JntVarEx2, rep_number, ".csv", sep=""))
   
   write.csv(file=fname, out, row.names = T)
-  print(paste("Output saved. Total time:", total_time))
+  print(paste("Output saved. Total time:", round(total_time, 3), "minutes"))
 }
 

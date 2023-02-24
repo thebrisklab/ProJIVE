@@ -43,7 +43,8 @@ mix.probs = c(0.2, 0.5, 0.3)
 diagnoses = factor(c(rep(1, each = n*mix.probs[1]),rep(2, each = n*mix.probs[2]),rep(3, each = n*mix.probs[3])))
 blocks <- ToyDat[["Data Blocks"]]
 ##Setup input parameters to use Gavin's EM code
-Y = do.call(cbind, lapply(blocks, function(x) scale(x, scale = FALSE)))
+Y = do.call(cbind, blocks)
+# Y = do.call(cbind, lapply(blocks, function(x) scale(x, scale = FALSE)))
 P = c(p1, p2); Q = c(r.J,r.I1,r.I2)
 
 # Theta

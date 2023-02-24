@@ -865,7 +865,7 @@ ProJIVE_AsymVar<-function(W.mats, error.vars, theta, r.J, Y){
 ###########          pJIVE ML estimation of JIVE model that uses EM algorithm                ##################
 ###########       This version was originally built for K>2                                  ##################
 ###############################################################################################################
-ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,plots=TRUE,chord.tol=-1,sig_hat=NULL, init.loads = NULL){
+ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,plots=TRUE,chord.tol=-1,sig_hat=NULL, init.loads = NULL, center = FALSE){
   
   ## init.loads must be a list of two lists - first item contains a list of joint loading matrices
   ##                                          second item is a list of indiv loading matrices
@@ -873,6 +873,7 @@ ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,plots=TRUE,chord.tol=-1,s
   
   # Total sample size
   N=dim(Y)[1]
+  if(center){Y=scale(Y, scale = FALSE)}
   
   # Total number feature blocks
   if(length(P)==(length(Q)-1)){

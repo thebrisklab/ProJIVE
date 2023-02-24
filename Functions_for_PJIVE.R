@@ -811,6 +811,52 @@ eval_converge=function(vals_vec,all_obs.LogLik, diff.tol){
     }
   }
 }
+
+## Calculate empirical observed information matrix
+ProJIVE_AsymVar<-function(W.mats, error.vars, theta, r.J, Y){
+  K1 = length(W.mats)
+  K2 = length(error.vars)
+  if(K1!=K2){stop("W matrices and error variances must have the same length.")}
+  
+  K = K1; rm(K1, K2)
+  r = ncol(theta) ##r_J + r_I1 + ... + r_I2
+  r_k = sapply(W.mats, ncol)
+  p_k = sapply(W.mats, nrow)
+  r_Ik = r_k - r.J
+  n = nrow(Y)
+  
+  theta_k = list()
+  theta_k[[1]] = theta[,1:r_k[1]]
+  
+  Y_k = list()
+  Y_k[[1]] = Y[,1:p_k[1]]
+  
+  for(k in 2:K){
+    theta_k[[k]] = theta[,c(1:r.J, r.J + cumsum(r_Ik)[k-1] + (1:r_Ik[k]))]
+    Y_k[[k]] = Y[,cumsum(p_k)[k-1]+(1:p_k[k])]
+  }
+  
+  info.mat = 0
+  for(i in 1:nrow(Y)){
+    score_wk = score_sigmak = NULL
+    for(k in 1:K){
+      epsilon_ik = (Y_k[[k]][i,] - W.mats[[k]]%*%t(t(theta_k[[k]][i,])))
+      score_wk = c(score_wk, c(error.vars[k]^{-1}*epsilon_ik%*%t(theta_k[[k]][i,])))
+      score_sigmak = c(score_sigmak, (error.vars[k]^{-2}*t(epsilon_ik)%*%epsilon_ik - p_k[k]/error.vars[k])/2)
+    }
+    score_i = c(score_wk, score_sigmak)
+    info.mat = info.mat + t(t(score_i))%*%t(score_i)/n
+  }
+  inv.info = Rcpp.Inverse::demo_inverse(info.mat)
+  out = list(info.mat, inv.info)
+  names(out) = c("ObservedEmpericalInformationMatrix", "Inverse_ObservedEmpericalInformationMatrix")
+  # out = list(info.mat)
+  # names(out) = c("ObservedEmpericalInformationMatrix")
+  
+  return(out)
+  
+}
+
 ########################################################################
 ####################END OF PRE-DEFINED FUNCS############################
 ########################################################################
@@ -915,7 +961,7 @@ ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,plots=TRUE,chord.tol=-1,s
   # Initiate LogLik
   # all_obs.LogLik=c(-Inf)
   # all_complete.LogLik = c(-Inf)
-  c_solv=solve(Iq+t(w_hat)%*%solve(d_hat)%*%w_hat)
+  c_solv=Rcpp.Inverse::demo_inverse(Iq+t(w_hat)%*%solve(d_hat)%*%w_hat)
   exp.theta = U = Y%*%solve(d_hat)%*%w_hat%*%c_solv
   
   all_obs.LogLik=obs_LogLik(Y, mu_hat, w_hat, d_hat)
@@ -936,7 +982,7 @@ ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,plots=TRUE,chord.tol=-1,s
     w=w_hat
     d=d_hat
     
-    c_solv=solve(Iq+t(w)%*%solve(d_hat)%*%w)
+    c_solv=Rcpp.Inverse::demo_inverse(Iq+t(w)%*%solve(d_hat)%*%w)
     c_inv = solve(d_hat)%*%(diag(sum(P))-w%*%c_solv%*%t(w)%*%solve(d_hat))
     c_inv.w = c_inv%*%w
     w.c_in.w = t(w)%*%c_inv.w

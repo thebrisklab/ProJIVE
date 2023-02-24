@@ -6,7 +6,7 @@ output:
   word_document: default
 ---
 # Short Introudction
-This document serves as an illustrative example of JIVE analysis using both Canonical JIVE (i.e. CJIVE which is equivalent to AJIVE given the same joint and individual ranks) and the EM algorithm-based ProJIVE. Details of the ProJIVE model is currently under review for publication. Here, we use simulated (i.e. toy) data to compare. Our data simulation model is outlined in the ProJIVE manuscript. In order to follow along with the analyses presented herein, please make sure to install the CJIVE package (available on CRAN) and download the file "Functions_for_PJIVE.R" from our GitHub page github.com/BenjaminRisk/ProJIVE and save it in the same directory as this document. Both the program to simulate data and ProJIVE are currently designed to handle exactly $K \geq 2$ data sets.
+This document serves as an illustrative example of JIVE analysis using both Canonical JIVE (i.e. CJIVE which is equivalent to AJIVE given the same joint and individual ranks) and the EM algorithm-based ProJIVE. Details of the ProJIVE model is currently under review for publication. Here, we use simulated (i.e. toy) data to compare. Our data simulation model is outlined in the ProJIVE manuscript. In order to follow along with the analyses presented herein, please make sure to download the files "Functions_for_PJIVE.R" and "Functions_for_CJIVE.R" from our GitHub page github.com/BenjaminRisk/ProJIVE and save it in the same directory as this document. Both the program to simulate data and ProJIVE are currently designed to handle exactly $K \geq 2$ data sets.
 
 ```{r setup, include=FALSE}
 require(CJIVE)

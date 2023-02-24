@@ -17,15 +17,15 @@ doc.dir = "H:/My Documents/P-JIVE/Programs/Examples/Output"
 
 ##Simulation parameters
 rep_number = 1
-r.J = 2
-r.I1 = 5
-r.I2 = 8
+r.J = 1
+r.I1 = 2
+r.I2 = 2
 #outdir = args[2]
 n = 1000
 p1 = 200
 p2 = 20 ####Note that p1 and p2 differ when compared to values used in simulations
-JntVarEx1 = 0.5
-JntVarEx2 = 0.5
+JntVarEx1 = 0.05
+JntVarEx2 = 0.05
 #files = list.files(outdir)
 IndVarEx1 = 0.25
 IndVarEx2 = 0.25
@@ -100,9 +100,55 @@ PJIVE.loads.X = PJIVE.res$LoadingMatrix[1:p1,-(sum(Q):(sum(Q[-3])+1))]
 PJIVE.loads.Y = PJIVE.res$LoadingMatrix[-(1:p1),-(r.J+1:r.I1)]
 PJIVE.err.var = PJIVE.res$ErrorVariances
 
+layout(matrix(c(1:6,4,7,8),3, byrow = TRUE))
+plot(JntScores, PJIVE.scores[,1:r.J, drop = FALSE], xlab = "True Joint Scores", ylab = "ProJIVE Joint Scores", 
+     col = c(rep("orange",n), rep("green",n), rep("purple",n)), 
+     sub = paste0("Chordal Norm = ", round(chord.norm.diff(JntScores, PJIVE.scores[,1:r.J, drop = FALSE]), 3), ":",
+                  " PMSE = ", round(pmse.2(S1 = JntScores, S2 = PJIVE.scores[,-(1:r.J), drop = FALSE], standardize = TRUE), 3)))
+plot(IndivScore.X, PJIVE.scores[,r.J+(1:r.I1), drop = FALSE], xlab = "True Indiv 1 Scores", ylab = "ProJIVE Indiv 1 Scores", 
+     col = c(rep("orange",n), rep("green",n)),
+     sub = paste0("Chordal Norm = ", round(chord.norm.diff(IndivScore.X, PJIVE.scores[,r.J+(1:r.I1)]), 3), ":",
+                  " PMSE = ", round(pmse.2(S1 = IndivScore.X, S2 = PJIVE.scores[,r.J+(1:r.I1), drop = FALSE], standardize = TRUE), 3)))
+plot(IndivScore.Y, PJIVE.scores[,(r.J+r.I1)+(1:r.I2)], xlab = "True Indiv 2 Scores", ylab = "ProJIVE Indiv 2 Scores", 
+     col = c(rep("orange",n), rep("green",n)),
+     sub = paste0("Chordal Norm = ", round(chord.norm.diff(IndivScore.Y, PJIVE.scores[,(r.J+r.I1)+(1:r.I2)]), 3), ":",
+                  " PMSE = ", round(pmse.2(S1 = IndivScore.Y, S2 = PJIVE.scores[,(r.J+r.I1)+(1:r.I2)], standardize = TRUE), 3)))
+plot.new(); title("ProJIVE Results \n (loadings and error variance \ninitialized  from True Values)", 
+                  sub = bquote(sigma["1"]*"="*.(round(PJIVE.err.var[1],2))*"; "*sigma["2"]*"="*.(round(PJIVE.err.var[2],2))))
+legend("left", paste("Comp.", 1:3), pch = 1, col  = c("orange", "green", "purple"),bty = "n" )
+plot(JntLd.X, PJIVE.loads.X[,1:r.J, drop = FALSE], xlab = "True Joint Loadings X", ylab = "ProJIVE Joint Loadings X", 
+     col = c(rep("orange",p1), rep("green",p1), rep("purple",p1)),  
+     sub = paste0("Chordal Norm = ", round(chord.norm.diff(JntLd.X, PJIVE.loads.X[,1:r.J, drop = FALSE]), 3), ":",
+                  " PMSE = ", round(pmse.2(S1 = JntLd.X, S2 = PJIVE.loads.X[,1:r.J, drop = FALSE], standardize = TRUE), 3)))
+plot(JntLd.Y, PJIVE.loads.Y[,1:r.J, drop = FALSE], xlab = "True Joint Loadings Y", ylab = "ProJIVE Joint Loadings Y", 
+     col = c(rep("orange",p1), rep("green",p1), rep("purple",p1)),  
+     sub = paste0("Chordal Norm = ", round(chord.norm.diff(JntLd.Y, PJIVE.loads.Y[,1:r.J, drop = FALSE]), 3), ":",
+                  " PMSE = ", round(pmse.2(S1 = JntLd.Y, S2 = PJIVE.loads.Y[,1:r.J, drop = FALSE], standardize = TRUE), 3)))
+plot(IndivLd.X, PJIVE.loads.X[,-(1:r.J)], xlab = "True Individual Loadings X", ylab = "ProJIVE Individual Loadings X", 
+     col = c(rep("orange",p1), rep("green",p2)), 
+     sub = paste0("Chordal Norm = ", round(chord.norm.diff(IndivLd.X, PJIVE.loads.X[,-(1:r.J)]), 3), ":",
+                  " PMSE = ", round(pmse.2(S1 = IndivLd.X, S2 = PJIVE.loads.X[,-(1:r.J)], standardize = TRUE), 3)))
+plot(IndivLd.Y, PJIVE.loads.Y[,-(1:r.J)], xlab = "True Individual Loadings Y", ylab = "ProJIVE Individual Loadings Y", 
+     col = c(rep("orange",p1), rep("green",p2)), 
+     sub = paste0("Chordal Norm = ", round(chord.norm.diff(IndivLd.Y, PJIVE.loads.Y[,-(1:r.J)]), 3), ":",
+                  " PMSE = ", round(pmse.2(S1 = IndivLd.Y, S2 = PJIVE.loads.Y[,-(1:r.J)], standardize = TRUE), 3)))
+layout(1)
+
 ProJIVE.info = ProJIVE_AsymVar(list(PJIVE.loads.X, PJIVE.loads.Y), PJIVE.err.var, PJIVE.scores, r.J, Y)
 show.image.2(ProJIVE.info$ObservedEmpericalInformationMatrix)
 show.image.2(ProJIVE.info$Inverse_ObservedEmpericalInformationMatrix)
+
+show.image.2(pnorm(abs(PJIVE.loads.X/PJIVE.err.var[1]*n), lower.tail = FALSE))
+show.image.2(pnorm(abs(PJIVE.loads.Y/PJIVE.err.var[2]*n), lower.tail = FALSE))
+
+#########################################################################################################################
+############       ProJIVE with loadings and error variance initialized from the truth and centering Y        ###########
+PJIVE.res = ProJIVE_EM(Y=Y, P=P, Q=Q, init.loads = init.loads, sig_hat = c(1,1), plots = TRUE, center = TRUE)
+
+PJIVE.scores = PJIVE.res$SubjectScoreMatrix
+PJIVE.loads.X = PJIVE.res$LoadingMatrix[1:p1,-(sum(Q):(sum(Q[-3])+1))]
+PJIVE.loads.Y = PJIVE.res$LoadingMatrix[-(1:p1),-(r.J+1:r.I1)]
+PJIVE.err.var = PJIVE.res$ErrorVariances
 
 layout(matrix(c(1:6,4,7,8),3, byrow = TRUE))
 plot(JntScores, PJIVE.scores[,1:r.J, drop = FALSE], xlab = "True Joint Scores", ylab = "ProJIVE Joint Scores", 
@@ -137,6 +183,10 @@ plot(IndivLd.Y, PJIVE.loads.Y[,-(1:r.J)], xlab = "True Individual Loadings Y", y
      sub = paste0("Chordal Norm = ", round(chord.norm.diff(IndivLd.Y, PJIVE.loads.Y[,-(1:r.J)]), 3), ":",
                   " PMSE = ", round(pmse.2(S1 = IndivLd.Y, S2 = PJIVE.loads.Y[,-(1:r.J)], standardize = TRUE), 3)))
 layout(1)
+
+ProJIVE.info = ProJIVE_AsymVar(list(PJIVE.loads.X, PJIVE.loads.Y), PJIVE.err.var, PJIVE.scores, r.J, Y)
+show.image.2(ProJIVE.info$ObservedEmpericalInformationMatrix)
+show.image.2(ProJIVE.info$Inverse_ObservedEmpericalInformationMatrix)
 
 show.image.2(pnorm(abs(PJIVE.loads.X/PJIVE.err.var[1]*n), lower.tail = FALSE))
 show.image.2(pnorm(abs(PJIVE.loads.Y/PJIVE.err.var[2]*n), lower.tail = FALSE))

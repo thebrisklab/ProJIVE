@@ -1083,6 +1083,47 @@ ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,plots=TRUE,chord.tol=-1,s
   return(out)
 }
 
+###############################################################################################################
+###########   Wrapper function to conduct ProJIVE analyses (w option for multiple initial    ##################
+###########     values for loadings), and calculate asymptotic variance                      ##################
+###############################################################################################################
+ProJIVE<-function(Y, P, Q, Max.iter=10000, diff.tol=1e-5, plots=TRUE, 
+                  chord.tol=-1, sig_hat=NULL, init.loads = NULL, center = FALSE, 
+                  num.starts = 1, AsymVar = FALSE, return.all.starts = FALSE){
+  ProJIVE.res = list()
+  obs.lik = NULL
+  for(start in 1:num.starts){
+    if(start==1){
+      init.loads.in = init.loads
+    } else{
+      init.loads.in = NULL
+    }
+    ProJIVE.res[[start]] = ProJIVE_EM(Y, P, Q, Max.iter, diff.tol, plots, 
+                                      chord.tol, sig_hat, init.loads.in, center)
+    obs.lik = c(obs.lik, tail(ProJIVE.res[[start]]$`Observed-Data-Log-Likelihood`, n=1))
+  }
+  out = list()
+  
+  if(return.all.starts){
+    out[["ProJIVE_Results"]] = ProJIVE.res
+    out[["ObservedDataLogLikelihood"]] = obs.lik
+  } else if(!return.all.starts){
+    out[["ProJIVE_Results"]] = ProJIVE.res[[which.max(obs.lik)]]
+    out[["ObservedDataLogLikelihood"]] = obs.lik[which.max(obs.lik)]
+  }
+  
+  if(AsymVar){
+    PJIVE.res = ProJIVE.res[[which.max(obs.lik)]]
+    PJIVE.scores = PJIVE.res$SubjectScoreMatrix
+    PJIVE.loads.X = PJIVE.res$LoadingMatrix[1:p1,-(sum(Q):(sum(Q[-3])+1))]
+    PJIVE.loads.Y = PJIVE.res$LoadingMatrix[-(1:p1),-(r.J+1:r.I1)]
+    PJIVE.err.var = PJIVE.res$ErrorVariances
+    
+    out[["ObservedEmpireicalInfo"]] = ProJIVE_AsymVar(list(PJIVE.loads.X, PJIVE.loads.Y), PJIVE.err.var, PJIVE.scores, r.J, Y)
+  }
+  return(out)
+}
+
 #############################################################################
 ##########      Constructs descriptive statistics table    ##################
 #############################################################################

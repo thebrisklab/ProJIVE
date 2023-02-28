@@ -5,7 +5,7 @@
 ### Supervised by Benjamin Risk                                                             #################################
 #############################################################################################################################
 # NOTE: Change the location of 'prog.dir' to the location where you have saved the file 'Functions_to_SimulateData.R'
-prog.dir = "H:/My Documents/P-JIVE/Programs/Functions"
+prog.dir = "C:/Users/rmurden/OneDrive - Emory University/Documents/GitHub/ProJIVE"
 prog.gipca.dir = "H:/My Documents/P-JIVE/Programs/GeneralizedIntegrativePCA-master/Functions"
 source(file.path(prog.dir, "Functions_for_PJIVE.R"))
 library(singR); library(CJIVE); library(reticulate)
@@ -21,8 +21,8 @@ r.J = 1
 r.I1 = 2
 r.I2 = 2
 #outdir = args[2]
-n = 1000
-p1 = 200
+n = 500
+p1 = 10
 p2 = 20 ####Note that p1 and p2 differ when compared to values used in simulations
 JntVarEx1 = 0.05
 JntVarEx2 = 0.05
@@ -146,11 +146,13 @@ show.image.2(pnorm(abs(PJIVE.loads.Y/PJIVE.err.var[2]*n), lower.tail = FALSE))
 #########################################################################################################################
 ############       ProJIVE with loadings and error variance initialized from the truth and centering Y        ###########
 PJIVE.res = ProJIVE_EM(Y=Y, P=P, Q=Q, init.loads = init.loads, sig_hat = c(1,1), plots = TRUE, center = TRUE)
+PJIVE.res = ProJIVE(Y=Y, P=P, Q=Q, init.loads = init.loads, sig_hat = c(1,1), plots = TRUE, num.starts = 2,
+                    center = TRUE, return.all.starts = TRUE)
 
-PJIVE.scores = PJIVE.res$SubjectScoreMatrix
-PJIVE.loads.X = PJIVE.res$LoadingMatrix[1:p1,-(sum(Q):(sum(Q[-3])+1))]
-PJIVE.loads.Y = PJIVE.res$LoadingMatrix[-(1:p1),-(r.J+1:r.I1)]
-PJIVE.err.var = PJIVE.res$ErrorVariances
+PJIVE.scores = PJIVE.res$ProJIVE_Results[[2]]$SubjectScoreMatrix
+PJIVE.loads.X = PJIVE.res$ProJIVE_Results[[2]]$LoadingMatrix[1:p1,-(sum(Q):(sum(Q[-3])+1))]
+PJIVE.loads.Y = PJIVE.res$ProJIVE_Results[[2]]$LoadingMatrix[-(1:p1),-(r.J+1:r.I1)]
+PJIVE.err.var = PJIVE.res$ProJIVE_Results[[2]]$ErrorVariances
 
 layout(matrix(c(1:6,4,7,8),3, byrow = TRUE))
 plot(JntScores, PJIVE.scores[,1:r.J, drop = FALSE], xlab = "True Joint Scores", ylab = "ProJIVE Joint Scores", 

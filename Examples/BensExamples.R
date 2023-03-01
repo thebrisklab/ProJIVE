@@ -3,8 +3,7 @@
 ### Author:  Benjamin Risk                                                             #################################
 #############################################################################################################################
 # NOTE: Change the location of 'prog.dir' to the location where you have saved the file 'Functions_for_PJIVE.R'
-prog.dir = "C:\Users\rmurden\OneDrive - Emory University\Documents\GitHub\ProJIVE"
-source(file.path(prog.dir, "Functions_for_PJIVE.R"))
+source("Functions_for_PJIVE.R")
 library(singR); library(CJIVE); library(reticulate)
 
 W = matrix(c(1,0,0,0,2,0,0,0,0,3,0,0,0,0,4,0,0,0),6,3,byrow = TRUE)

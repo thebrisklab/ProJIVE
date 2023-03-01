@@ -3,11 +3,6 @@
 #######                 Author: Raphiel J. Murden                                      ####################################
 #######                 Supervised by Benjamin Risk                                    ####################################
 ###########################################################################################################################
-# require(rootSolve); require(optimx); require(gplots); require(r.jive); 
-ajive.dir = "H:/My Documents/Applications2/r_AJIVE/R"
-files= list.files(ajive.dir)
-for (i in files) source(file.path(ajive.dir, i))
-
 require(Matrix); require(ggplot2); require(reshape2); require(fields); require(mvtnorm)
 require(dplyr); require(xtable);  require(MASS); require(extraDistr); require(stringr)
 
@@ -865,7 +860,7 @@ ProJIVE_AsymVar<-function(W.mats, error.vars, theta, r.J, Y){
 ###########          pJIVE ML estimation of JIVE model that uses EM algorithm                ##################
 ###########       This version was originally built for K>2                                  ##################
 ###############################################################################################################
-ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,plots=TRUE,chord.tol=-1,sig_hat=NULL, init.loads = NULL){
+ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,plots=TRUE,chord.tol=-1,sig_hat=NULL, init.loads = NULL, center = FALSE){
   
   ## init.loads must be a list of two lists - first item contains a list of joint loading matrices
   ##                                          second item is a list of indiv loading matrices
@@ -873,6 +868,7 @@ ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,plots=TRUE,chord.tol=-1,s
   
   # Total sample size
   N=dim(Y)[1]
+  if(center){Y=scale(Y, scale = FALSE)}
   
   # Total number feature blocks
   if(length(P)==(length(Q)-1)){
@@ -914,7 +910,7 @@ ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,plots=TRUE,chord.tol=-1,s
     for(k in 2:K){
       dat.blocks[[k]] = Y[,cumsum(P[k-1])+(1:P[k])]
     }
-    ajive.solution = ajive(dat.blocks, initial_signal_ranks = Q[1]+Q[-1], joint_rank = Q[1])
+    ajive.solution = CJIVE::sjive(blocks = dat.blocks, signal_ranks = Q[1]+Q[-1], joint_rank = Q[1])
     
     WJ = lapply(ajive.solution$block_decomps, function(x) x$joint$v)
     WI = lapply(ajive.solution$block_decomps, function(x) x$individual$v)
@@ -1079,6 +1075,47 @@ ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,plots=TRUE,chord.tol=-1,s
   names(out) = c("SubjectScoreMatrix", "LoadingMatrix", "Ranks", "VarianceExplained", "ErrorVariances",
                  "ChordalDistances","Complete-Data-Log-Likelihood", "Observed-Data-Log-Likelihood", "BIC", "AIC")
   
+  return(out)
+}
+
+###############################################################################################################
+###########   Wrapper function to conduct ProJIVE analyses (w option for multiple initial    ##################
+###########     values for loadings), and calculate asymptotic variance                      ##################
+###############################################################################################################
+ProJIVE<-function(Y, P, Q, Max.iter=10000, diff.tol=1e-5, plots=TRUE, 
+                  chord.tol=-1, sig_hat=NULL, init.loads = NULL, center = FALSE, 
+                  num.starts = 1, AsymVar = FALSE, return.all.starts = FALSE){
+  ProJIVE.res = list()
+  obs.lik = NULL
+  for(start in 1:num.starts){
+    if(start==1){
+      init.loads.in = init.loads
+    } else{
+      init.loads.in = NULL
+    }
+    ProJIVE.res[[start]] = ProJIVE_EM(Y, P, Q, Max.iter, diff.tol, plots, 
+                                      chord.tol, sig_hat, init.loads.in, center)
+    obs.lik = c(obs.lik, tail(ProJIVE.res[[start]]$`Observed-Data-Log-Likelihood`, n=1))
+  }
+  out = list()
+  
+  if(return.all.starts){
+    out[["ProJIVE_Results"]] = ProJIVE.res
+    out[["ObservedDataLogLikelihood"]] = obs.lik
+  } else if(!return.all.starts){
+    out[["ProJIVE_Results"]] = ProJIVE.res[[which.max(obs.lik)]]
+    out[["ObservedDataLogLikelihood"]] = obs.lik[which.max(obs.lik)]
+  }
+  
+  if(AsymVar){
+    PJIVE.res = ProJIVE.res[[which.max(obs.lik)]]
+    PJIVE.scores = PJIVE.res$SubjectScoreMatrix
+    PJIVE.loads.X = PJIVE.res$LoadingMatrix[1:p1,-(sum(Q):(sum(Q[-3])+1))]
+    PJIVE.loads.Y = PJIVE.res$LoadingMatrix[-(1:p1),-(r.J+1:r.I1)]
+    PJIVE.err.var = PJIVE.res$ErrorVariances
+    
+    out[["ObservedEmpireicalInfo"]] = ProJIVE_AsymVar(list(PJIVE.loads.X, PJIVE.loads.Y), PJIVE.err.var, PJIVE.scores, r.J, Y)
+  }
   return(out)
 }
 

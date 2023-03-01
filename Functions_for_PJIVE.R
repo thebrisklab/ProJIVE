@@ -3,11 +3,6 @@
 #######                 Author: Raphiel J. Murden                                      ####################################
 #######                 Supervised by Benjamin Risk                                    ####################################
 ###########################################################################################################################
-# require(rootSolve); require(optimx); require(gplots); require(r.jive); 
-ajive.dir = "H:/My Documents/Applications2/r_AJIVE/R"
-files= list.files(ajive.dir)
-for (i in files) source(file.path(ajive.dir, i))
-
 require(Matrix); require(ggplot2); require(reshape2); require(fields); require(mvtnorm)
 require(dplyr); require(xtable);  require(MASS); require(extraDistr); require(stringr)
 
@@ -915,7 +910,7 @@ ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,plots=TRUE,chord.tol=-1,s
     for(k in 2:K){
       dat.blocks[[k]] = Y[,cumsum(P[k-1])+(1:P[k])]
     }
-    ajive.solution = ajive(dat.blocks, initial_signal_ranks = Q[1]+Q[-1], joint_rank = Q[1])
+    ajive.solution = CJIVE::sjive(blocks = dat.blocks, signal_ranks = Q[1]+Q[-1], joint_rank = Q[1])
     
     WJ = lapply(ajive.solution$block_decomps, function(x) x$joint$v)
     WI = lapply(ajive.solution$block_decomps, function(x) x$individual$v)

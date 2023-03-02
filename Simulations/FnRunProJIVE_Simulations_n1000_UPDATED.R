@@ -215,8 +215,11 @@ if (!(nm %in% files)){
   WJ.init = list(JntLd.X, JntLd.Y)
   WI.init = list(IndivLd.X, IndivLd.Y)
   init.loads = list(WJ.init, WI.init)
-  pro.oracle.time = system.time({pro.oracle.jive.res = ProJIVE_EM(Y=Y, P=P, Q=Q, plots = TRUE, sig_hat = "MLE", init.loads = init.loads)})
-  print(paste("ProJIVE (with AJIVE initiated Loadings) done in", round(pro.oracle.time['elapsed'], 3), "sec."))
+  pro.oracle.time = system.time({pro.oracle.jive.res.all = ProJIVE(Y=Y, P=P, Q=Q, plots = TRUE, sig_hat = "MLE", init.loads = init.loads, num.starts = 10,
+                                                               center = TRUE)})
+  print(paste("ProJIVE with loadings initiated from the truth done in", round(pro.oracle.time['elapsed'], 3), "sec."))
+  
+  pro.oracle.jive.res = pro.oracle.jive.res.all[[1]]
   
   #####Retrieve results from pro_Oracle with ranks pre-specified, and inital loadings from CJIVE
   pro.oracle.rJ = pro.oracle.jive.res$Ranks["Joint"]
@@ -256,7 +259,7 @@ if (!(nm %in% files)){
   
   #### Apply ProJIVE-Init Oracle
   pro.time = system.time({pro.jive.res = ProJIVE_EM(Y=Y, P=P, Q=Q, plots = TRUE, sig_hat = "MLE", init.loads = "CJIVE")})
-  print(paste("ProJIVE with loadings initiated from the truth done in", round(pro.time['elapsed'], 3), "sec."))
+  print(paste("ProJIVE (with AJIVE initiated Loadings) done in", round(pro.time['elapsed'], 3), "sec."))
   
   #####Retrieve results from pro_Oracle with ranks not specified: use permutation method to find them
   pro.rJ = pro.jive.res$Ranks["Joint"]

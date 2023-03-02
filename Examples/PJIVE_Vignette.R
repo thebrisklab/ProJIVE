@@ -17,13 +17,13 @@ doc.dir = "H:/My Documents/P-JIVE/Programs/Examples/Output"
 
 ##Simulation parameters
 rep_number = 1
-r.J = 1
+r.J = 3
 r.I1 = 2
 r.I2 = 2
 #outdir = args[2]
-n = 500
-p1 = 10
-p2 = 20 ####Note that p1 and p2 differ when compared to values used in simulations
+n = 1000
+p1 = 20
+p2 = 200 ####Note that p1 and p2 differ when compared to values used in simulations
 JntVarEx1 = 0.5
 JntVarEx2 = 0.5
 #files = list.files(outdir)

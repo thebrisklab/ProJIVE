@@ -910,10 +910,10 @@ ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,plots=TRUE,chord.tol=-1,s
     for(k in 2:K){
       dat.blocks[[k]] = Y[,cumsum(P[k-1])+(1:P[k])]
     }
-    ajive.solution = CJIVE::sjive(blocks = dat.blocks, signal_ranks = Q[1]+Q[-1], joint_rank = Q[1])
+    ajive.solution = CJIVE::sjive(blocks = dat.blocks, signal_ranks = Q[1]+Q[-1], joint.rank = Q[1])
     
-    WJ = lapply(ajive.solution$block_decomps, function(x) x$joint$v)
-    WI = lapply(ajive.solution$block_decomps, function(x) x$individual$v)
+    WJ = lapply(ajive.solution$joint_matrices, function(x) x$v)
+    WI = lapply(ajive.solution$indiv_matrices, function(x) x$v)
   }
   
   # Block specific loading matrices W_k

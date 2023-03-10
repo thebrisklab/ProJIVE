@@ -948,8 +948,7 @@ ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,plots=TRUE,chord.tol=-1,s
   mu_hat=apply(as.matrix(Y),2,sum) / N   
   
   ## Store some values to save computation time
-  Yc=sweep(Y, 2, mu_hat)
-  S=t(Yc)%*%Yc
+  S=t(Y)%*%Y
   
   Iq=diag(sum(Q))
   Ip=diag(sum(P))

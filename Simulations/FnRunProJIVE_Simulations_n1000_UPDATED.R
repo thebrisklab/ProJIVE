@@ -66,10 +66,10 @@ if (!(nm %in% files)){
   true_signal_ranks = r.J + c(r.I1,r.I2)                          ##true jranks of overall signals
   ToyDat = GenerateToyData(n = n, p = c(p1, p2), JntVarEx = c(JntVarEx1, JntVarEx2), 
                            IndVarEx = c(IndVarEx1, IndVarEx2), jnt_rank = r.J,
-                           equal.eig = T, ind_ranks = c(r.I1, r.I2), JntVarAdj = T, SVD.plots = F,
+                           equal.eig = F, ind_ranks = c(r.I1, r.I2), JntVarAdj = T, SVD.plots = F,
                            Error = T, print.cor = F, Loads = "Gaussian", Scores = "Gaussian")
   
-  blocks <- lapply(ToyDat[[2]], scale)
+  blocks <- ToyDat[[2]]
   rnd.smp = sample(n, n/2)
   blocks.sub1 = lapply(blocks, function(x){x[rnd.smp,]})
   blocks.sub2 = lapply(blocks, function(x){x[-rnd.smp,]})
@@ -216,7 +216,7 @@ if (!(nm %in% files)){
   WI.init = list(IndivLd.X, IndivLd.Y)
   init.loads = list(WJ.init, WI.init)
   pro.oracle.time = system.time({pro.oracle.jive.res.all = ProJIVE(Y=Y, P=P, Q=Q, plots = TRUE, sig_hat = "MLE", init.loads = init.loads, num.starts = 10,
-                                                               center = TRUE)})
+                                                               center = TRUE, return.all.starts = TRUE)})
   print(paste("ProJIVE with loadings initiated from the truth done in", round(pro.oracle.time['elapsed'], 3), "sec."))
   
   pro.oracle.jive.res = pro.oracle.jive.res.all[[1]]

@@ -174,13 +174,13 @@ if (!(nm %in% files)){
   i.ind.VarEx.Y = sum(svd(i.IY.hat)[['d']]^2)/i.TotVar.Y
   
   #### Apply AJIVE-Oracle
-  a.c.time = system.time({ajive.oracle<-ajive(blocks,initial_signal_ranks = true_signal_ranks, joint_rank = r.J)})
+  a.c.time = system.time({ajive.oracle<-cc.jive(dat.blocks = blocks, signal.ranks = true_signal_ranks, joint.rank = r.J)})
   print(paste("AJIVE done in", round(a.c.time['elapsed'], 3), "sec."))
   
   #####Retrieve results from AJIVE_Oracle with ranks not specified: use permutation method to find them
-  a.c.JntScores.hat = ajive.oracle$joint_scores
-  a.c.jnt.loadX = ajive.oracle$block_decomps[[1]]$joint$v
-  a.c.jnt.loadY = ajive.oracle$block_decomps[[2]]$joint$v
+  a.c.JntScores.hat = ajive.oracle$CanCorRes$Jnt_Scores
+  a.c.jnt.loadX = ajive.oracle$sJIVE$joint_matrices[[1]]$v
+  a.c.jnt.loadY = ajive.oracle$sJIVE$joint_matrices[[2]]$v
   
   a.c.jnt.subnorm = chord.norm.diff(JntScores, a.c.JntScores.hat)
   a.c.jnt.loadX.norm = chord.norm.diff(JntLd.X, a.c.jnt.loadX)
@@ -190,10 +190,10 @@ if (!(nm %in% files)){
   a.c.jnt.loadX.pmse = pmse.2(standardize = TRUE, S1 = JntLd.X, S2 = a.c.jnt.loadX)
   a.c.jnt.loadY.pmse = pmse.2(standardize = TRUE, S1 = JntLd.Y, S2 = a.c.jnt.loadY)
   
-  a.c.W.IY.hat = ajive.oracle$block_decomps[[2]][["individual"]][["v"]]
-  a.c.W.IX.hat = ajive.oracle$block_decomps[[1]][["individual"]][["v"]]
-  a.c.bX.hat = ajive.oracle$block_decomps[[1]][["individual"]][["u"]]
-  a.c.bY.hat = ajive.oracle$block_decomps[[2]][["individual"]][["u"]]
+  a.c.W.IX.hat = ajive.oracle$sJIVE$indiv_matrices[[1]]$v
+  a.c.W.IY.hat = ajive.oracle$sJIVE$indiv_matrices[[2]]$v
+  a.c.bX.hat = ajive.oracle$sJIVE$indiv_matrices[[1]]$u
+  a.c.bY.hat = ajive.oracle$sJIVE$indiv_matrices[[2]]$u
   
   a.c.indiv.X.subnorm = chord.norm.diff(IndivScore.X, a.c.bX.hat)
   a.c.indiv.Y.subnorm = chord.norm.diff(IndivScore.Y, a.c.bY.hat)
@@ -205,10 +205,10 @@ if (!(nm %in% files)){
   a.c.indiv.X.load.pmse = pmse.2(standardize = TRUE, S1 = IndivLd.X, S2 = a.c.W.IX.hat)
   a.c.indiv.Y.load.pmse = pmse.2(standardize = TRUE, S1 = IndivLd.Y, S2 = a.c.W.IY.hat)
   
-  a.c.jnt.VarEx.X = sum(svd(ajive.oracle[["block_decomps"]][[1]]$joint[["full"]])[['d']]^2)/TotVar.X
-  a.c.jnt.VarEx.Y = sum(svd(ajive.oracle[["block_decomps"]][[2]]$joint[["full"]])[['d']]^2)/TotVar.Y
-  a.c.ind.VarEx.X = sum(svd(ajive.oracle[["block_decomps"]][[1]]$individual[["full"]])[['d']]^2)/TotVar.X
-  a.c.ind.VarEx.Y = sum(svd(ajive.oracle[["block_decomps"]][[2]]$individual[["full"]])[['d']]^2)/TotVar.Y
+  a.c.jnt.VarEx.X = sum(ajive.oracle$sJIVE$joint_matrices[[1]]$d^2)/TotVar.X
+  a.c.jnt.VarEx.Y = sum(ajive.oracle$sJIVE$joint_matrices[[2]]$d^2)/TotVar.Y
+  a.c.ind.VarEx.X = sum(ajive.oracle$sJIVE$indiv_matrices[[1]]$d^2)/TotVar.X
+  a.c.ind.VarEx.Y = sum(ajive.oracle$sJIVE$indiv_matrices[[2]]$d^2)/TotVar.Y
   
   #### Apply ProJIVE-Oracle
   Y=do.call(cbind, blocks); P=c(p1, p2); Q=c(r.J,(true_signal_ranks-r.J))
@@ -216,7 +216,7 @@ if (!(nm %in% files)){
   WI.init = list(IndivLd.X, IndivLd.Y)
   init.loads = list(WJ.init, WI.init)
   pro.oracle.time = system.time({pro.oracle.jive.res.all = ProJIVE(Y=Y, P=P, Q=Q, plots = TRUE, sig_hat = "MLE", init.loads = init.loads, num.starts = 10,
-                                                               center = TRUE, return.all.starts = TRUE)})
+                                                               center = TRUE, return.all.starts = FALSE)})
   print(paste("ProJIVE with loadings initiated from the truth done in", round(pro.oracle.time['elapsed'], 3), "sec."))
   
   pro.oracle.jive.res = pro.oracle.jive.res.all[[1]]

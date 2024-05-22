@@ -6,18 +6,18 @@
 require(r.jive); require(ggplot2); require(xtable); require(reshape); require(lubridate); require(cowplot)
 require(tidyr); require(arsenal); require(dplyr); require(stringr); require(gridExtra)
 
-# results.dir_n500_rJ1 = "H:/My Documents/P-JIVE/Results/Simulation_Results/VarEx_Sims/JointRank1_MixRad_n500"
-# results.dir_n500_rJ3 = "H:/My Documents/P-JIVE/Results/Simulation_Results/VarEx_Sims/JointRank3_MixRad_n500"
+# results.dir_n500_rJ1 = "H:/My Documents/ProJIVE/Results/Simulation_Results/VarEx_Sims/JointRank1_MixRad_n500"
+# results.dir_n500_rJ3 = "H:/My Documents/ProJIVE/Results/Simulation_Results/VarEx_Sims/JointRank3_MixRad_n500"
 # imgs.fldr_n500_rJ1 = results.dir_n500_rJ1
 # imgs.fldr_n500_rJ3 = results.dir_n500_rJ3
 
-results.dir_n1000_rJ1 = "H:/My Documents/P-JIVE/Results/Simulation_Results/rJ1_MR_plus_dCCA"
-results.dir_n1000_rJ3 = "H:/My Documents/P-JIVE/Results/Simulation_Results/rJ3_MR_plus_dCCA/"
+results.dir_n1000_rJ1 = "H:/My Documents/ProJIVE/Results/Simulation_Results/rJ1_MR_plus_dCCA"
+results.dir_n1000_rJ3 = "H:/My Documents/ProJIVE/Results/Simulation_Results/rJ3_MR_plus_dCCA/"
 imgs.fldr_n1000_rJ1 = results.dir_n1000_rJ1
 imgs.fldr_n1000_rJ3 = results.dir_n1000_rJ3
 
 
-prog.dir = "H:/My Documents/P-JIVE/Programs/Functions"
+prog.dir = "H:/My Documents/ProJIVE/Programs/Functions"
 source(file.path(prog.dir, "Functions_for_PJIVE.R"))
 source(file.path(prog.dir, "Functions_for_CJIVE.R"))
 
@@ -162,7 +162,8 @@ Time.Table_p2200_n1000_rJ1 = aggregate(cbind(OracleProJIVE_Time, ProJIVE_Time, A
                                       ~ JntVarEx1 + JntVarEx2 + p2 + n + r.J, data = AllSims200.rows, 
                                       FUN = function(x) paste0(round(mean(x/60),1), " (", round(sd(x/60),3), ")"))
 Time.Table_n1000_rJ1 = rbind(Time.Table_p220_n1000_rJ1, Time.Table_p2200_n1000_rJ1)
-Time.Table_rJ1 = rbind(Time.Table_n500_rJ1, Time.Table_n1000_rJ1)
+# Time.Table_rJ1 = rbind(Time.Table_n500_rJ1, Time.Table_n1000_rJ1)
+Time.Table_rJ1 = Time.Table_n1000_rJ1
 
 sim.200.gg = ConvSims_gg_ProJIVE2(AllSims200, 1000)
 sim.200.gg.data = sim.200.gg$Norms
@@ -172,7 +173,12 @@ pmse.plot.200 = gg.pmse.plot(sim.200.gg$PMSEs, cbPalette[2:7], text.size = 15, l
 
 plot.name = paste("MR_SimBin_n1000_rJ1_P120_P2200_ScoreAndLoadNormPlots_wLegend", Sys.Date(), ".pdf", sep = "")
 pdf(file = file.path(imgs.fldr_n1000_rJ1, plot.name))
-gg.norm.plot.2(sim.gg.data, cb.cols, text.size = 15, show.legend = TRUE)
+gg.norm.plot.2(sim.200.gg.data, cb.cols, text.size = 15, show.legend = TRUE)
+dev.off()
+
+plot.name = paste("MR_SimBin_n1000_rJ1_P120_P2200_ScoreAndLoadPMSEPlots_wLegend", Sys.Date(), ".pdf", sep = "")
+pdf(file = file.path(imgs.fldr_n1000_rJ1, plot.name))
+print(pmse.plot.200)
 dev.off()
 
 # sim.200.scores = sim.200.gg.data[grep("Score", sim.200.gg.data[,"Type"]),]
@@ -307,8 +313,8 @@ ggplot(data = VarEx.dat.gg.20, aes(y = Mean_EmpJntVarEx, x = Type, fill = Method
   theme(axis.title.x = element_blank(), axis.text.x = element_text(hjust = 01, angle = 70, size = 9),
         text = element_text(size = 11)) + 
   geom_errorbar(aes(ymin=Mean_EmpJntVarEx-SD_EmpJntVarEx, ymax=Mean_EmpJntVarEx+SD_EmpJntVarEx), position=position_dodge(), linewidth = 0.25) 
-# ggsave(file.path(imgs.fldr_n1000_rJ3, paste0("MR_VarExn_1000_rJ3_p2_20_", lubridate::today(), ".pdf")),
-#        width = 5, height = 4, units = "in")
+ggsave(file.path(imgs.fldr_n1000_rJ3, paste0("MR_VarExn_1000_rJ3_p2_20_", lubridate::today(), ".pdf")),
+       width = 5, height = 4, units = "in")
 
 ########################################################################################################################
 ########################################################################################################################
@@ -348,6 +354,7 @@ Time.Table_p2200_n1000_rJ3 = aggregate(cbind(OracleProJIVE_Time, ProJIVE_Time, A
                                       FUN = function(x) paste0(round(mean(x/60),1), " (", round(sd(x/60),3), ")"))
 Time.Table_n1000_rJ3 = rbind(Time.Table_p220_n1000_rJ3, Time.Table_p2200_n1000_rJ3)
 # Time.Table_rJ3 = rbind(Time.Table_n500_rJ3, Time.Table_n1000_rJ3)
+Time.Table_rJ3 = Time.Table_n1000_rJ3
 
 sim.200.gg = ConvSims_gg_ProJIVE2(AllSims200, 1000)
 sim.200.gg.data = sim.200.gg$Norms
@@ -407,8 +414,8 @@ ggplot(data = VarEx.dat.gg.200, aes(y = Mean_EmpJntVarEx, x = Type, fill = Metho
   theme(axis.title.x = element_blank(), axis.text.x = element_text(hjust = 01, angle = 70, size = 9),
         text = element_text(size = 11)) + 
   geom_errorbar(aes(ymin=Mean_EmpJntVarEx-SD_EmpJntVarEx, ymax=Mean_EmpJntVarEx+SD_EmpJntVarEx), position=position_dodge(), size = 0.25) 
-# ggsave(file.path(imgs.fldr_n1000_rJ3, paste0("MR_VarExn_1000_rJ3_p2_200_", lubridate::today(), ".pdf")),
-#        width = 5, height = 4, units = "in")
+ggsave(file.path(imgs.fldr_n1000_rJ3, paste0("MR_VarExn_1000_rJ3_p2_200_", lubridate::today(), ".pdf")),
+       width = 5, height = 4, units = "in")
 
 legend = get_legend(norm.plot.200.legend + theme(text = element_text(size = 7)) +guides(fill=guide_legend(nrow=1)))
 
@@ -418,7 +425,7 @@ plot_grid(plot_grid(norm.plot.20 , norm.plot.200, ncol = 1, align = 'v', labels 
 dev.off()
 
 MR.Time.Table = rbind(Time.Table_rJ1, Time.Table_rJ3)[,c(5:1,6:9)]
-write.csv(MR.Time.Table, file = "H:/My Documents/P-JIVE/Results/Simulation_Results/VarEx_Sims/MR_Time_Table.csv", row.names = FALSE)
+write.csv(MR.Time.Table, file = "H:/My Documents/ProJIVE/Results/Simulation_Results/rJ3_MR_plus_dCCA/MR_Time_Table.csv", row.names = FALSE)
 
 # ########################################################################################################################
 # ########################################################################################################################

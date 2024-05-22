@@ -6,16 +6,16 @@
 require(r.jive); require(ggplot2); require(xtable); require(reshape); require(gridExtra); require(cowplot); require(CJIVE)
 require(tidyr); require(arsenal); require(dplyr); require(stringr); require(gridExtra); require(lubridate)
 
-# results.dir_n500_rJ1 = "H:/My Documents/P-JIVE/Results/Simulation_Results/VarEx_Sims/JointRank1_GaussGauss_n500"
-# results.dir_n500_rJ3 = "H:/My Documents/P-JIVE/Results/Simulation_Results/VarEx_Sims/JointRank3_GaussGauss_n500"
+# results.dir_n500_rJ1 = "H:/My Documents/ProJIVE/Results/Simulation_Results/VarEx_Sims/JointRank1_GaussGauss_n500"
+# results.dir_n500_rJ3 = "H:/My Documents/ProJIVE/Results/Simulation_Results/VarEx_Sims/JointRank3_GaussGauss_n500"
 # imgs.fldr_n500_rJ1 = results.dir_n500_rJ1
 # imgs.fldr_n500_rJ3 = results.dir_n500_rJ3
-results.dir_n1000_rJ1 = "H:/My Documents/P-JIVE/Results/Simulation_Results/rJ1_GG_plus_dCCA"
-results.dir_n1000_rJ3 = "H:/My Documents/P-JIVE/Results/Simulation_Results/rJ3_GG_plus_dCCA"
+results.dir_n1000_rJ1 = "H:/My Documents/ProJIVE/Results/Simulation_Results/rJ1_GG_plus_dCCA"
+results.dir_n1000_rJ3 = "H:/My Documents/ProJIVE/Results/Simulation_Results/rJ3_GG_plus_dCCA"
 imgs.fldr_n1000_rJ1 = results.dir_n1000_rJ1
 imgs.fldr_n1000_rJ3 = results.dir_n1000_rJ3
 
-prog.dir = "H:/My Documents/P-JIVE/Programs/Functions"
+prog.dir = "H:/My Documents/ProJIVE/Programs/Functions"
 source(file.path(prog.dir, "Functions_for_PJIVE.R"))
 
 ajive.dir = "H:/My Documents/Applications2/r_AJIVE/R"
@@ -105,10 +105,9 @@ dev.off()
 # print(load.plot.20)
 # dev.off()
 
-Time.Table_p220_rJ1.SD.Mean = aggregate(cbind(R.JIVE_Time, AJIVE_Time, ProJIVE_Time, GIPCA_Time, dCCA_Time) 
-                                        ~ JntVarEx1 + JntVarEx2 + p2, data = AllSims.rows, FUN = function(x) mean(x/60))
-Time.Table_p220_rJ1.SD.SD = aggregate(cbind(R.JIVE_Time, AJIVE_Time, ProJIVE_Time, GIPCA_Time) 
-                                      ~ JntVarEx1 + JntVarEx2 + p2, data = AllSims.rows, FUN = function(x) sd(x/60))
+Time.Table_p220_n1000_rJ1 = aggregate(cbind(R.JIVE_Time, AJIVE_Time, ProJIVE_Time, GIPCA_Time) 
+                                       ~ JntVarEx1 + JntVarEx2 + p2 + n + r.J, data = AllSims.rows, 
+                                       FUN = function(x) paste0(round(mean(x/60),1), " (", round(sd(x/60),3), ")"))
 
 VarEx.dat.gg = MakeVarEx.data.gg(AllSims.rows, 20, 20, 1000)
 x.labs = c(expression("Joint"*"X"[1]), expression("Joint"*"X"[2]),
@@ -203,10 +202,10 @@ dev.off()
 # dev.off()
 
 VarEx.dat.gg.200 = MakeVarEx.data.gg(AllSims.rows, 20, 200, 1000)
-x.labs = c(expression("Indiv"*"X"[1]), expression("Indiv"*"X"[2]), 
-           expression("Joint"*"X"[1]), expression("Joint"*"X"[2]))
+x.labs = c(expression("Joint"*"X"[1]), expression("Joint"*"X"[2]),
+           expression("Indiv"*"X"[1]), expression("Indiv"*"X"[2]))
 
-VarEx.plot.200 = ggplot(data = VarEx.dat.gg, aes(y = Mean_EmpJntVarEx, x = Type, fill = Method)) + 
+VarEx.plot.200 = ggplot(data = VarEx.dat.gg.200, aes(y = Mean_EmpJntVarEx, x = Type, fill = Method)) + 
   geom_bar(position = "dodge", stat = "identity") + ylab("Mean Variance Explained") +  
   scale_fill_manual(name = "JIVE Method", values = cbPalette[c(1:5,7)]) +
   scale_x_discrete(labels = x.labs) + 
@@ -407,8 +406,8 @@ dev.off()
 # dev.off()
 # 
 VarEx.dat.gg.200 = MakeVarEx.data.gg(AllSims200.rows, 20, 200, 1000)
-x.labs = c(expression("Indiv"*"X"[1]), expression("Indiv"*"X"[2]), 
-           expression("Joint"*"X"[1]), expression("Joint"*"X"[2]))
+x.labs = c(expression("Joint"*"X"[1]), expression("Joint"*"X"[2]),
+           expression("Indiv"*"X"[1]), expression("Indiv"*"X"[2]))
 
 VarEx.plot.200 = ggplot(data = VarEx.dat.gg.200, aes(y = Mean_EmpJntVarEx, x = Type, fill = Method)) + 
   geom_bar(position = "dodge", stat = "identity") + ylab("Mean Variance Explained") +  
@@ -424,7 +423,7 @@ ggsave(file.path(imgs.fldr_n1000_rJ3, paste0("GG_VarEx_n1000_rJ3_p2_200_", lubri
 
 
 # GG.Time.Table = rbind(Time.Table_rJ1, Time.Table_rJ3)[,c(5:1,6:9)]
-# write.csv(GG.Time.Table, file = "H:/My Documents/P-JIVE/Results/Simulation_Results/VarEx_Sims/GG_Time_Table.csv", row.names = FALSE)
+# write.csv(GG.Time.Table, file = "H:/My Documents/ProJIVE/Results/Simulation_Results/VarEx_Sims/GG_Time_Table.csv", row.names = FALSE)
 
 # apply(GG.Time.Table[,6:9], 2, function(x) str_extract(x, "(?<=.)[:space:]"))
 

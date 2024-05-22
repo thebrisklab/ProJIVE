@@ -5,6 +5,7 @@
 ###########################################################################################################################
 require(Matrix); require(ggplot2); require(reshape2); require(fields); require(mvtnorm)
 require(dplyr); require(xtable);  require(MASS); require(extraDistr); require(stringr)
+require(MCMCpack)
 
 ######################################################################################################################
 ###########   Generates K Simulated Datasets that follow JIVE Model using binary subject scores   ####################
@@ -22,7 +23,10 @@ GenerateToyData <- function(n, p, JntVarEx, IndVarEx, jnt_rank = 1, equal.eig = 
   cat(paste0("Generating Scores ", Scores.text, " and Loadings ", Loads.text, ". \n"))
   
   # Generate scores
-  if(Scores=="Binomial"){
+  if(is.numeric(Scores)){
+    JntScores = Scores[,1:r.J, drop = FALSE]
+    IndivScores = Scores[,-(1:r.J), drop = FALSE]
+  } else if(Scores=="Binomial"){
       JntScores = matrix(rbinom(n*r.J, size=1, prob=0.2), nrow = n, ncol = r.J)
       
       b = rbinom(n*sum(r.I), size=1, prob=0.4)
@@ -739,29 +743,32 @@ generate_d=function(sig_lst, p_vec){
   return(D)
 }
 
-obs_LogLik<-function(Y, mu, w, d){
+obs_LogLik<-function(Y, w, d){
   ##############################################
-  # input:    -mu    :a G list of d dimension vectors
-  #           -w     :a G list of dxp matrices
-  #           -d     :a G list of d length vector indicating the noise
-  #           -Y     :a nxd data frame as the observations
+  # input:    -w     :a P-by-r matrix
+  #           -d     :a P-by-P symmetric matrix estimating the noise covariance
+  #           -Y     :an N-by-P data frame of the observed data
   #           
   # output:   a real value of the log likelihood
   ##############################################
   
   N=dim(Y)[1]
   
-  
-  lik<-rep(0, N)
-  
-  
+<<<<<<< HEAD
   c=w%*%t(w)+d
   s=t(Y)%*%Y/N
   
   LogLik=-N/2*(ncol(Y)*log(2*pi) + log(det(c)) + sum(diag(solve(c)%*%s)))
+=======
   
-  # lik=dmvnorm(Y,mu,c,log = TRUE)
-  # LogLik=sum(lik)
+  lik<-rep(0, N)
+  
+  
+  s=w%*%t(w)+d
+  
+  lik=dmvnorm(Y,mu,s)
+  LogLik=sum(log(lik))
+>>>>>>> a070c2cdbd768228c65e43bc788328aa0b0e6386
   
   return(LogLik)
 }
@@ -793,19 +800,24 @@ complete_LogLik<-function(Y, theta, mu, w, d){
 }
 
 ## FUNC to evaluate convergence in the loop
-eval_converge=function(vals_vec,all_obs.LogLik, diff.tol){
-  len = length(all_obs.LogLik)
+eval_converge=function(vals_vec, diff.tol){
+  len = length(vals_vec)
   if(length(vals_vec)==1) {
     return(TRUE)
   }else{
     if(vals_vec[length(vals_vec)]==-Inf){
       return(TRUE)
     }else{
+<<<<<<< HEAD
       diff.ll = all_obs.LogLik[len]-all_obs.LogLik[len-1]
-      return((diff.ll>=(diff.tol) & diff.ll>0))
+=======
+      diff.ll = vals_vec[len]-vals_vec[len-1]
+>>>>>>> a070c2cdbd768228c65e43bc788328aa0b0e6386
+      return((diff.ll>=(diff.tol)))
     }
   }
 }
+<<<<<<< HEAD
 
 ## Calculate empirical observed information matrix
 ProJIVE_AsymVar<-function(W.mats, error.vars, theta, r.J, Y){
@@ -831,27 +843,76 @@ ProJIVE_AsymVar<-function(W.mats, error.vars, theta, r.J, Y){
     Y_k[[k]] = Y[,cumsum(p_k)[k-1]+(1:p_k[k])]
   }
   
-  info.mat = 0
+  score_i = list()
   for(i in 1:nrow(Y)){
     score_wk = score_sigmak = NULL
     for(k in 1:K){
       epsilon_ik = (Y_k[[k]][i,] - W.mats[[k]]%*%t(t(theta_k[[k]][i,])))
-      score_wk = c(score_wk, c(error.vars[k]^{-1}*epsilon_ik%*%t(theta_k[[k]][i,])))
-      score_sigmak = c(score_sigmak, (error.vars[k]^{-2}*t(epsilon_ik)%*%epsilon_ik - p_k[k]/error.vars[k])/2)
+      score_wk = c(score_wk, c(epsilon_ik%*%t(theta_k[[k]][i,])/error.vars[k]))
+      score_sigmak = c(score_sigmak, (t(epsilon_ik)%*%epsilon_ik/error.vars[k] - p_k[k])/(2*error.vars[k]))
     }
-    score_i = c(score_wk, score_sigmak)
-    info.mat = info.mat + t(t(score_i))%*%t(score_i)/n
+    score_i[[i]] = matrix(c(score_wk, score_sigmak),ncol = 1)
   }
-  inv.info = Rcpp.Inverse::demo_inverse(info.mat)
-  out = list(info.mat, inv.info)
-  names(out) = c("ObservedEmpericalInformationMatrix", "Inverse_ObservedEmpericalInformationMatrix")
-  # out = list(info.mat)
-  # names(out) = c("ObservedEmpericalInformationMatrix")
-  
+  mean.score = info.mat = 0
+  for(i in 1:n){
+    mean.score = mean.score + score_i[[i]]/nrow(Y)
+  }
+  for(i in 1:n){
+    info.mat = info.mat + (score_i[[i]]-mean.score)%*%t(score_i[[i]]-mean.score)
+  }
+  out = list(mean.score, info.mat)
+  names(out) = c("MeanScoreVector", "ObservedEmpericalInformationMatrix")
+  tryCatch(
+    {
+      inv.info = Matrix::chol2inv(Matrix::chol(info.mat))
+      out = list(mean.score, info.mat, inv.info)
+      names(out) = c("MeanScoreVector", "ObservedEmpericalInformationMatrix", "Inverse_ObservedEmpericalInformationMatrix")
+    }, 
+      error = function(cond){
+      message("Warning: Information matrix is not positive definite.
+              Generalized inverse used to estimate covariance matrix.")
+      inv.info = MASS::ginv(info.mat)
+      inv.info
+      } 
+  )
   return(out)
-  
 }
 
+#############################      Bootstrap      #############################
+ProJIVE_BootsratVar = function(B = 50, P, Q, theta.hat, W.hat, error.vars){
+  nobs = nrow(theta.hat)
+  bstrap.mean = 0
+  bstraps = list()
+  for(b in 1:B){
+    errors = NULL
+    for(k in 1:length(P)){
+      errors = cbind(errors, matrix(sqrt(error.vars[k])*rnorm(n=nobs*(P[k])),nrow=nobs))
+    }
+    
+    tempdata = theta.hat%*%t(W.hat)+errors
+    
+    temp.res = ProJIVE_EM(Y=tempdata, P=P, Q=Q, Max.iter=10000, diff.tol=1e-7, sig_hat = "MLE",
+                          init.loads = "AJIVE", plots = FALSE, verbose = FALSE)
+    
+    Procrustes.Loading = MCMCpack::procrustes(X = temp.res$LoadingMatrix, Xstar = W.hat)$X.new
+    bstrap.mean = bstrap.mean + temp.res$LoadingMatrix/B
+    bstraps[[b]] = temp.res$LoadingMatrix
+  }
+  
+  bstrap.var = 0
+  for(b in 1:B){
+    bstrap.var = bstrap.var + matrix(bstraps[[b]] - bstrap.mean, ncol = 1)%*%matrix(bstraps[[b]] - bstrap.mean, nrow = 1)/(B-1)
+  }
+  round(bstrap.var)
+  
+  bstrap.se = sqrt(diag(bstrap.var))
+  out = list(bstrap.var, bstrap.se);
+  names(out) = c("Boostrap_Covariance", "Bootstrap_StdErrs")
+  return(out)
+}
+
+=======
+>>>>>>> a070c2cdbd768228c65e43bc788328aa0b0e6386
 ########################################################################
 ####################END OF PRE-DEFINED FUNCS############################
 ########################################################################
@@ -860,15 +921,19 @@ ProJIVE_AsymVar<-function(W.mats, error.vars, theta, r.J, Y){
 ###########          pJIVE ML estimation of JIVE model that uses EM algorithm                ##################
 ###########       This version was originally built for K>2                                  ##################
 ###############################################################################################################
-ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,plots=TRUE,chord.tol=-1,sig_hat=NULL, init.loads = NULL, center = FALSE){
+<<<<<<< HEAD
+ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,plots=TRUE,chord.tol=-1,
+                    sig_hat=NULL, init.loads = NULL, center = FALSE, verbose = TRUE){
   
   ## init.loads must be a list of two lists - first item contains a list of joint loading matrices
   ##                                          second item is a list of indiv loading matrices
   ##                                          each matrix must have dimension p_k-by-r_
+=======
+ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,plots=TRUE,chord.tol=-1,sig_hat=NULL, init.loads = NULL){
+>>>>>>> a070c2cdbd768228c65e43bc788328aa0b0e6386
   
   # Total sample size
   N=dim(Y)[1]
-  if(center){Y=scale(Y, scale = FALSE)}
   
   # Total number feature blocks
   if(length(P)==(length(Q)-1)){
@@ -878,7 +943,7 @@ ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,plots=TRUE,chord.tol=-1,s
   }
   Q.tot = Q[1] + Q[-1]
   
-  # Selection matrices A_knd B_k
+  # Selection matrices A_ddknd B_k
   A=list()
   B=list()
   for(k in 1:K){
@@ -895,11 +960,19 @@ ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,plots=TRUE,chord.tol=-1,s
   }
   
   # get initial estimates of loadings matrices via cc.jive
+  wk_hat=wji_hat=list()
   if (is.null(init.loads)){
+    #Default: Initialize loadings as a sub matrix of the Cholesky Decomposition solution L
     WJ = WI = list()
     for(k in 1:K){
-      WJ[[k]] = matrix(rnorm(Q[1]*P[k]), nrow = P[k])
-      WI[[k]] = matrix(rnorm(Q[k+1]*P[k]), nrow = P[k])
+      if((k==1)){
+        L=t(chol(cov(Y[,1:P[k]])))
+      } else if(k>1){
+        L=t(chol(cov(Y[,(sum(P[1:(k-1)])+1):sum(P[1:k])])))
+      }
+      wji_hat[[k]]=L[,1:(Q[1]+Q[k+1])]
+      WJ[[k]] = wji_hat[[k]][,1:Q[1]]
+      WI[[k]] = wji_hat[[k]][,-(1:Q[1])]
     }
   } else if (is.list(init.loads)){
     WJ = init.loads[[1]]
@@ -910,14 +983,13 @@ ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,plots=TRUE,chord.tol=-1,s
     for(k in 2:K){
       dat.blocks[[k]] = Y[,cumsum(P[k-1])+(1:P[k])]
     }
-    ajive.solution = CJIVE::sjive(blocks = dat.blocks, signal_ranks = Q[1]+Q[-1], joint.rank = Q[1])
+    ajive.solution = ajive(dat.blocks, initial_signal_ranks = Q[1]+Q[-1], joint_rank = Q[1])
     
-    WJ = lapply(ajive.solution$joint_matrices, function(x) x$v)
-    WI = lapply(ajive.solution$indiv_matrices, function(x) x$v)
+    WJ = lapply(ajive.solution$block_decomps, function(x) x$joint$v)
+    WI = lapply(ajive.solution$block_decomps, function(x) x$individual$v)
   }
   
   # Block specific loading matrices W_k
-  wk_hat=wji_hat=list()
   for(k in 1:K){ 
     wji_hat[[k]]=cbind(WJ[[k]], WI[[k]])
   }
@@ -947,54 +1019,65 @@ ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,plots=TRUE,chord.tol=-1,s
   chord.dist = NULL
   mu_hat=apply(as.matrix(Y),2,sum) / N   
   
-  ## Store some values to save computation time
-  S=t(Y)%*%Y
-  
   Iq=diag(sum(Q))
   Ip=diag(sum(P))
   
+<<<<<<< HEAD
   # Initiate LogLik
   # all_obs.LogLik=c(-Inf)
   # all_complete.LogLik = c(-Inf)
-  c_solv=Rcpp.Inverse::demo_inverse(Iq+t(w_hat)%*%solve(d_hat)%*%w_hat)
+  c_solv=Matrix::chol2inv(chol(Iq+t(w_hat)%*%solve(d_hat)%*%w_hat))
   exp.theta = U = Y%*%solve(d_hat)%*%w_hat%*%c_solv
+=======
+  c_solv=solve(Iq+t(w_hat)%*%solve(d_hat)%*%w_hat)
+  exp.theta =  Y%*%solve(d_hat)%*%w_hat%*%c_solv
+>>>>>>> a070c2cdbd768228c65e43bc788328aa0b0e6386
   
-  all_obs.LogLik=obs_LogLik(Y, mu_hat, w_hat, d_hat)
+  all_obs.LogLik=obs_LogLik(Y, w_hat, d_hat)
   all_complete.LogLik = complete_LogLik(Y, exp.theta, mu_hat, w_hat, d_hat)
   
   # Set initial iteration number:
-  iter=1
+  iter=0
   
-  #create flag to stop EM alrogithm if/when necessary
+  #create flag to stop EM algorithm if/when necessary
   flag=FALSE
   while (Max.iter>=iter 
-         & eval_converge(all_obs.LogLik,all_obs.LogLik,N*diff.tol)
-         & (ifelse(is.null(chord.dist), 1, chord.dist[iter-1]) > chord.tol)
-         & eval_converge(all_complete.LogLik,all_complete.LogLik,N*diff.tol)
-         & flag==FALSE) 
+         & eval_converge(all_obs.LogLik,N*diff.tol))
   {
     ################## START OF EM-ALGORITHM ######################
+    ## Store some values to save computation time
+    Yc=sweep(Y, 2, mu_hat)
+    S=t(Yc)%*%Yc/N
+    
+    
     w=w_hat
     d=d_hat
     
-    c_solv=Rcpp.Inverse::demo_inverse(Iq+t(w)%*%solve(d_hat)%*%w)
+<<<<<<< HEAD
+    c_solv=Matrix::chol2inv(chol(Iq+t(w)%*%solve(d_hat)%*%w))
     c_inv = solve(d_hat)%*%(diag(sum(P))-w%*%c_solv%*%t(w)%*%solve(d_hat))
     c_inv.w = c_inv%*%w
     w.c_in.w = t(w)%*%c_inv.w
     U = N*diag(sum(Q)) - N*w.c_in.w + t(c_inv.w)%*%S%*%c_inv.w
+=======
+    c_solv=solve(Iq+t(w)%*%solve(d_hat)%*%w)
+>>>>>>> a070c2cdbd768228c65e43bc788328aa0b0e6386
     
+    U=S%*%solve(d_hat)%*%w%*%c_solv
+    V=c_solv+c_solv%*%t(w)%*%solve(d_hat)%*%S%*%solve(d_hat)%*%w%*%c_solv
+    
+    ## Update d_tild
+    
+    d_tild=S-2*w%*%t(U)+w%*%V%*%t(w)   
     for(k in 1:K){
-      temp1 = A[[k]]%*%S%*%c_inv.w
-      temp2 = B[[k]]%*%U%*%t(B[[k]])
-      temp3 = A[[k]]%*%w
+      
       ## Update wk_hat 
-      wk_hat[[k]] = temp1%*%t(B[[k]])%*%solve(temp2)
+      wk_hat[[k]]=A[[k]]%*%U%*%t(B[[k]])%*%solve(B[[k]]%*%V%*%t(B[[k]]))
       
       ## Update sigma_hat
-      sig_hat[k]=mean(diag(A[[k]]%*%S%*%t(A[[k]]) + temp3%*%U%*%t(temp3) - 2*temp3%*%t(temp1)))/N
-      
-      rm(temp1, temp2, temp3)
+      sig_hat[k]=mean(diag(A[[k]]%*%diag(diag(d_tild))%*%t(A[[k]])))
     }
+    
     
     w_hat=wk_to_w(wk_hat, P, Q)
     chord.dist = c(chord.dist, chord.norm.diff(w, w_hat))
@@ -1005,19 +1088,11 @@ ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,plots=TRUE,chord.tol=-1,s
     ################## End of EM-ALGORITHM ######################
     
     # Compute subject scores
-    exp.theta = U = Y%*%solve(d_hat)%*%w%*%c_solv
+    exp.theta = Y%*%solve(d_hat)%*%w%*%c_solv
     
-    all_obs.LogLik=append(all_obs.LogLik, obs_LogLik(Y, mu_hat, w_hat, d_hat))  
+    all_obs.LogLik=append(all_obs.LogLik, obs_LogLik(Y, w_hat, d_hat))  
     all_complete.LogLik=append(all_complete.LogLik, complete_LogLik(Y, exp.theta, mu_hat, w_hat, d_hat))  
     
-    len = length(all_obs.LogLik)
-    if(all_obs.LogLik[len]<=all_obs.LogLik[len-1] | all_complete.LogLik[len]<=all_complete.LogLik[len-1]){
-      d_hat = d; w_hat = w; c_solv=solve(Iq+t(w)%*%solve(d_hat)%*%w)
-      exp.theta = U = Y%*%solve(d_hat)%*%w%*%c_solv
-      all_obs.LogLik = all_obs.LogLik[-len]
-      all_complete.LogLik = all_complete.LogLik[-len]
-      flag = TRUE
-    }
     ## Update iter
     iter=iter + 1
   }
@@ -1025,12 +1100,13 @@ ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,plots=TRUE,chord.tol=-1,s
   obs_BIC = (sum(P*(Q[1]+Q[-1]))+2)*log(N)-2*all_obs.LogLik[length(all_obs.LogLik)]
   obs_AIC = (sum(P*(Q[1]+Q[-1]))+2)*2-2*all_obs.LogLik[length(all_obs.LogLik)]
   
-  cat(paste0("Total Iterations = ",toString(iter), " \n",
-             "Observed Data Likelihood = ",toString(round(all_obs.LogLik[length(all_obs.LogLik)],4)), " \n", 
-             "Complete Data Likelihood = ",toString(round(all_complete.LogLik[length(all_complete.LogLik)],4)), " \n",
-             "BIC = ",toString(round(obs_BIC,4)), " \n",
-             "AIC = ",toString(round(obs_AIC,4)), " \n",
-             "Chordal Norm = ",toString(chord.dist[length(chord.dist)]), "\n"))
+  verb.out = paste0("Total Iterations = ",toString(iter), " \n",
+                    "Observed Data Likelihood = ",toString(round(all_obs.LogLik[length(all_obs.LogLik)],4)), " \n", 
+                    "Complete Data Likelihood = ",toString(round(all_complete.LogLik[length(all_complete.LogLik)],4)), " \n",
+                    "BIC = ",toString(round(obs_BIC,4)), " \n",
+                    "AIC = ",toString(round(obs_AIC,4)), " \n",
+                    "Chordal Norm = ",toString(chord.dist[length(chord.dist)]), "\n")
+  if(verbose){cat(verb.out)}
   
   if(plots){
     if(is.finite(min(all_obs.LogLik))) {
@@ -1040,7 +1116,7 @@ ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,plots=TRUE,chord.tol=-1,s
       layout(matrix(1:2, nrow = 1))
     }
     if(is.finite(min(all_complete.LogLik))) {plot(all_complete.LogLik, ylab = "Log-Likelihood", 
-                                                      main = "Complete Data Log-Likelihood")}
+                                                  main = "Complete Data Log-Likelihood")}
     plot(chord.dist, ylab = "Chordal Norm", main = "Distance between consecutive \n estimates of 'W'")
     layout(1)
   }
@@ -1066,8 +1142,8 @@ ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,plots=TRUE,chord.tol=-1,s
   
   VarEx = list()
   for(k in 1:K){temp = c(Joint.signal.var[k]/tot.var[k], Individual.signal.var[k]/tot.var[k])
-                names(temp) = c("Joint", "Individual")
-                VarEx[[k]] = temp}
+  names(temp) = c("Joint", "Individual")
+  VarEx[[k]] = temp}
   names(VarEx) = paste0("Data_Block", 1:K)
   
   out = list(exp.theta, w_hat, Q, VarEx, sig_hat, chord.dist, all_complete.LogLik, all_obs.LogLik,obs_BIC,obs_AIC)
@@ -1077,6 +1153,7 @@ ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,plots=TRUE,chord.tol=-1,s
   return(out)
 }
 
+<<<<<<< HEAD
 ###############################################################################################################
 ###########   Wrapper function to conduct ProJIVE analyses (w option for multiple initial    ##################
 ###########     values for loadings), and calculate asymptotic variance                      ##################
@@ -1093,7 +1170,7 @@ ProJIVE<-function(Y, P, Q, Max.iter=10000, diff.tol=1e-5, plots=TRUE,
       init.loads.in = NULL
     }
     ProJIVE.res[[start]] = ProJIVE_EM(Y, P, Q, Max.iter, diff.tol, plots, 
-                                      chord.tol, sig_hat, init.loads.in, center)
+                                      chord.tol, sig_hat, init.loads.in)
     obs.lik = c(obs.lik, tail(ProJIVE.res[[start]]$`Observed-Data-Log-Likelihood`, n=1))
   }
   out = list()
@@ -1118,6 +1195,8 @@ ProJIVE<-function(Y, P, Q, Max.iter=10000, diff.tol=1e-5, plots=TRUE,
   return(out)
 }
 
+=======
+>>>>>>> a070c2cdbd768228c65e43bc788328aa0b0e6386
 #############################################################################
 ##########      Constructs descriptive statistics table    ##################
 #############################################################################
@@ -1796,7 +1875,7 @@ matchICA.2<-function (S, template, M = NULL) {
 #     # Compute subject scores
 #     exp.theta = U = Y%*%solve(d_hat)%*%w%*%c_solv
 #     
-#     all_obs.LogLik=append(all_obs.LogLik,obs_LogLik(Y, mu_hat, w_hat, d_hat))  
+#     all_obs.LogLik=append(all_obs.LogLik,obs_LogLik(Y, w_hat, d_hat))  
 #     all_complete.LogLik=append(all_complete.LogLik, complete_LogLik(Y, exp.theta, mu_hat, w_hat, d_hat))  
 #   }
 #   
@@ -2003,7 +2082,7 @@ matchICA.2<-function (S, template, M = NULL) {
 #     # Compute subject scores
 #     exp.theta = U = Y%*%solve(d_hat)%*%w%*%c_solv
 #     
-#     all_obs.LogLik=append(all_obs.LogLik,obs_LogLik(Y, mu_hat, w_hat, d_hat))  
+#     all_obs.LogLik=append(all_obs.LogLik,obs_LogLik(Y, w_hat, d_hat))  
 #     all_complete.LogLik=append(all_complete.LogLik, complete_LogLik(Y, exp.theta, mu_hat, w_hat, d_hat))  
 #   }
 #   

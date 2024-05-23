@@ -19,8 +19,6 @@
 ### 25JAN2023: Including PMSE (Permutation-invariant mean squared error) as a measure of estimation accuracy.See Risk, Matterson, and Rupert 2019
 ### 31JAN2023: Added "drop = FALSE" for subsetting columns of score and loading matrices with ranks is 1. 
 ###             This helps to ensure that PMSE is calculated and doesn't cause the entire simulation to fail
-### 26JUL2023: Finally fixed the ProJIVE script! I had a miscalculation of the data covariance matrix S in the original one.
-###             I foudn and corrected the miscalculation by reviewing Gavin's version of ProJIVE Mix       
 #############################################################################################################################
 args = commandArgs(trailingOnly=TRUE)
 # args = args[-1]
@@ -58,7 +56,7 @@ if (!(nm %in% files)){
   TIME = Sys.time()
   
   #######################################################################
-  print(paste0("Is rep_number=",rep_number," a double? ",is.double(rep_number)))
+  print(paste0("Is rep_number=",rep_number," an double? ",is.double(rep_number)))
   set.seed(round(rep_number)) ##To ensure that any randomized processes give the same results each time
   ###Construct Datasets
   #####Add noise to already generated Joint and individual signal matrices for X, Y data blocks:
@@ -66,10 +64,14 @@ if (!(nm %in% files)){
   #######JIVE Implementations for Toy Data No 1################################################################################
   ###Setup input parameters for JIVE implementations
   true_signal_ranks = r.J + c(r.I1,r.I2)                          ##true jranks of overall signals
+  # ToyDat = GenerateToyData(n = n, p1 = p1, p2 = p2, JntVarEx1 = JntVarEx1, JntVarEx2 = JntVarEx2, 
+  #                          IndVarEx1 = IndVarEx1, IndVarEx2 =  IndVarEx2, jnt_rank = r.J,
+  #                          equal.eig = F,ind_rank1 = r.I1, ind_rank2 = r.I2, JntVarAdj = T, SVD.plots = F,
+  #                          Error = T, print.cor = F, Loads = "Gaussian", Scores = "Gaussian_Mixture")
   ToyDat = GenerateToyData(n = n, p = c(p1, p2), JntVarEx = c(JntVarEx1, JntVarEx2), 
                            IndVarEx = c(IndVarEx1, IndVarEx2), jnt_rank = r.J,
                            equal.eig = F, ind_ranks = c(r.I1, r.I2), JntVarAdj = T, SVD.plots = F,
-                           Error = T, print.cor = F, Loads = "Gaussian", Scores = "Gaussian")
+                           Error = T, print.cor = F, Loads = "Rademacher", Scores = "Gaussian_Mixture")
   
   blocks <- ToyDat[[2]]
   rnd.smp = sample(n, n/2)
@@ -161,7 +163,7 @@ if (!(nm %in% files)){
   i.indiv.Y.subnorm = chord.norm.diff(IndivScore.Y, i.bY.hat)
   i.indiv.X.loadnorm = chord.norm.diff(IndivLd.X, i.W.IX.hat)
   i.indiv.Y.loadnorm = chord.norm.diff(IndivLd.Y, i.W.IY.hat)
-
+  
   i.indiv.X.sub.pmse = pmse.2(standardize = TRUE, S1 = IndivScore.X, S2 = i.bX.hat)
   i.indiv.Y.sub.pmse = pmse.2(standardize = TRUE, S1 = IndivScore.Y, S2 = i.bY.hat)
   i.indiv.X.load.pmse = pmse.2(standardize = TRUE, S1 = IndivLd.X, S2 = i.W.IX.hat)
@@ -217,8 +219,8 @@ if (!(nm %in% files)){
   WJ.init = list(JntLd.X, JntLd.Y)
   WI.init = list(IndivLd.X, IndivLd.Y)
   init.loads = list(WJ.init, WI.init)
-  pro.oracle.time = system.time({pro.oracle.jive.res.all = ProJIVE(Y=Y, P=P, Q=Q, plots = TRUE, sig_hat = "MLE", init.loads = init.loads, num.starts = 1,
-                                                               center = TRUE, return.all.starts = FALSE)})
+  pro.oracle.time = system.time({pro.oracle.jive.res.all = ProJIVE(Y=Y, P=P, Q=Q, plots = TRUE, sig_hat = "MLE", init.loads = init.loads, num.starts = 10,
+                                                                   center = TRUE, return.all.starts = FALSE)})
   print(paste("ProJIVE with loadings initiated from the truth done in", round(pro.oracle.time['elapsed'], 3), "sec."))
   
   pro.oracle.jive.res = pro.oracle.jive.res.all[[1]]
@@ -318,7 +320,7 @@ if (!(nm %in% files)){
   GIPCA.bY.hat = GIPCA.res$U.ind[[2]]
   GIPCA.indiv.loads.X = t(GIPCA.res$V.ind[[1]])
   GIPCA.indiv.loads.Y = t(GIPCA.res$V.ind[[2]])
-
+  
   GI.indiv.X.subnorm = chord.norm.diff(IndivScore.X, GIPCA.bX.hat)
   GI.indiv.Y.subnorm = chord.norm.diff(IndivScore.Y, GIPCA.bY.hat)
   GI.indiv.X.loadnorm = chord.norm.diff(IndivLd.X, GIPCA.indiv.loads.X)
@@ -328,7 +330,7 @@ if (!(nm %in% files)){
   GI.indiv.Y.sub.pmse = pmse.2(standardize = TRUE, S1 = IndivScore.Y, S2 = GIPCA.bY.hat)
   GI.indiv.X.load.pmse = pmse.2(standardize = TRUE, S1 = IndivLd.X, S2 = GIPCA.indiv.loads.X)
   GI.indiv.Y.load.pmse = pmse.2(standardize = TRUE, S1 = IndivLd.Y, S2 = GIPCA.indiv.loads.Y)
-
+  
   # GIPCA.jnt.VarEx.X = protrue.jive.res$VarianceExplained$Joint[[1]][1]
   # GIPCA.jnt.VarEx.Y = protrue.jive.res$VarianceExplained$Joint[[2]][1]
   # GIPCA.ind.VarEx.X = protrue.jive.res$VarianceExplained$Indiv[[1]][2]
@@ -364,7 +366,7 @@ if (!(nm %in% files)){
   dCCA.indiv.Y.sub.pmse = pmse.2(standardize = TRUE, S1 = IndivScore.Y, S2 = svd.DY.dcca[['v']])
   dCCA.indiv.X.load.pmse = pmse.2(standardize = TRUE, S1 = IndivLd.X, S2 = svd.DX.dcca[['u']])
   dCCA.indiv.Y.load.pmse = pmse.2(standardize = TRUE, S1 = IndivLd.Y, S2 = svd.DY.dcca[['u']])
-
+  
   dCCA.TotVE.X = MatVar(dCCA.res[[1]])/TotVar.X
   dCCA.TotVE.Y = MatVar(dCCA.res[[2]])/TotVar.Y
   dCCA.jnt.VarEx.X = MatVar(dCCA.CX.hat)/TotVar.X
@@ -393,22 +395,22 @@ if (!(nm %in% files)){
                 
                 pro.oracle.jnt.sub.pmse, pro.oracle.jnt.loadX.pmse, pro.oracle.jnt.loadY.pmse, pro.oracle.indiv.X.sub.pmse, pro.oracle.indiv.Y.sub.pmse, pro.oracle.indiv.X.load.pmse, 
                 pro.oracle.indiv.Y.load.pmse,
-                 
+                
                 pro.jnt.sub.pmse, pro.jnt.loadX.pmse, pro.jnt.loadY.pmse, pro.indiv.X.sub.pmse, pro.indiv.Y.sub.pmse, pro.indiv.X.load.pmse, 
                 pro.indiv.Y.load.pmse,
-                 
+                
                 a.c.jnt.sub.pmse, a.c.jnt.loadX.pmse, a.c.jnt.loadY.pmse, a.c.indiv.X.sub.pmse, a.c.indiv.Y.sub.pmse, a.c.indiv.X.load.pmse, 
                 a.c.indiv.Y.load.pmse,
-                 
+                
                 i.jnt.sub.pmse, i.jnt.loadX.pmse, i.jnt.loadY.pmse, i.indiv.X.sub.pmse, i.indiv.Y.sub.pmse, i.indiv.X.load.pmse, 
                 i.indiv.Y.load.pmse,
-                 
+                
                 GI.jnt.sub.pmse, GI.jnt.loadX.pmse, GI.jnt.loadY.pmse, GI.indiv.X.sub.pmse, GI.indiv.Y.sub.pmse, GI.indiv.X.load.pmse, 
                 GI.indiv.Y.load.pmse,
-                 
+                
                 dCCA.jnt.sub.pmse, dCCA.jnt.loadX.pmse, dCCA.jnt.loadY.pmse, dCCA.indiv.X.sub.pmse, dCCA.indiv.Y.sub.pmse, dCCA.indiv.X.load.pmse, 
                 dCCA.indiv.Y.load.pmse)
-
+  
   names(CompEvals) = c("ProJIVE - Oracle Joint Subj Scores- Norm", "ProJIVE - Oracle Joint Loads X- Norm", "ProJIVE - Oracle Joint Loads Y- Norm", "ProJIVE - Oracle Indiv Subj Scores X- Norm",
                        "ProJIVE - Oracle Indiv Subj Scores Y- Norm", "ProJIVE - Oracle Indiv Loads X- Norm", "ProJIVE - Oracle Indiv Loads Y- Norm",
                        
@@ -444,7 +446,6 @@ if (!(nm %in% files)){
                        
                        "dCCA Joint Subj Scores- PMSE", "dCCA Joint Loads X- PMSE", "dCCA Joint Loads Y- PMSE", "dCCA Indiv Subj Scores X- PMSE",
                        "dCCA Indiv Subj Scores Y- PMSE", "dCCA Indiv Loads X- PMSE", "dCCA Indiv Loads Y- PMSE")
-  
   VarEx.true = c(JVE.X, JVE.Y, IVE.X, IVE.Y, TotVE.X, TotVE.Y)
   VarEx.ajive = c(a.c.jnt.VarEx.X, a.c.jnt.VarEx.Y, a.c.ind.VarEx.X, a.c.ind.VarEx.Y)
   VarEx.rjive = c(i.jnt.VarEx.X, i.jnt.VarEx.Y, i.ind.VarEx.X, i.ind.VarEx.Y)
@@ -465,14 +466,14 @@ if (!(nm %in% files)){
   
   total_time = Sys.time() - TIME
   
-  out = c(VarEx, CompEvals, total_time['elapsed'], i.time['elapsed'], a.c.time['elapsed'], pro.time['elapsed'], pro.oracle.time['elapsed'], 
+  out = c(VarEx, CompEvals, total_time['elapsed'],i.time['elapsed'],a.c.time['elapsed'], pro.time['elapsed'], pro.oracle.time['elapsed'], 
           GIPCA.time['elapsed'], dCCA.time['elapsed'])
   
   names(out) = c(names(VarEx), names(CompEvals),"Total_Time", "R.JIVE_Time", 
                  "AJIVE_Time", "ProJIVE_Time", "OracleProJIVE_Time", "GIPCA_Time", "dCCA_Time")
   
   fname = file.path(outdir, paste("sim_", JntVarEx1, "_", JntVarEx2, rep_number, ".csv", sep=""))
-
+  
   write.csv(file=fname, out, row.names = T)
   print(paste("Output saved. Total time:", round(total_time, 3), "minutes"))
 }

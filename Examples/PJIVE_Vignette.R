@@ -24,8 +24,8 @@ r.I2 = 2
 n = 1000
 p1 = 20
 p2 = 20 ####Note that p1 and p2 differ when compared to values used in simulations
-JntVarEx1 = 0.5
-JntVarEx2 = 0.5
+JntVarEx1 = 0.05
+JntVarEx2 = 0.05
 #files = list.files(outdir)
 IndVarEx1 = 0.25
 IndVarEx2 = 0.25
@@ -40,8 +40,8 @@ true_signal_ranks = r.J + c(r.I1,r.I2)                          ##true ranks of 
 ToyDat = GenerateToyData(n = n, p = c(p1, p2), JntVarEx = c(JntVarEx1, JntVarEx2),
                          equal.eig = TRUE, IndVarEx = c(IndVarEx1, IndVarEx2),
                          jnt_rank = r.J, ind_ranks = c(r.I1, r.I2), JntVarAdj = T, 
-                         SVD.plots = F, Error = T, print.cor = F, Loads = "Fixed",
-                         Scores = "Gaussian", error.variances = c(2,3))
+                         SVD.plots = F, Error = T, print.cor = F, Loads = "Rademacher",
+                         Scores = "Gaussian_Mixture", error.variances = c(2,3))
 ## Proportions of groups for mixture
 mix.probs = c(0.2, 0.5, 0.3)
 diagnoses = factor(c(rep(1, each = n*mix.probs[1]),rep(2, each = n*mix.probs[2]),rep(3, each = n*mix.probs[3])))

@@ -19,6 +19,8 @@
 ### 25JAN2023: Including PMSE (Permutation-invariant mean squared error) as a measure of estimation accuracy.See Risk, Matterson, and Rupert 2019
 ### 31JAN2023: Added "drop = FALSE" for subsetting columns of score and loading matrices with ranks is 1. 
 ###             This helps to ensure that PMSE is calculated and doesn't cause the entire simulation to fail
+### 26JUL2023: Finally fixed the ProJIVE script! I had a miscalculation of the data covariance matrix S in the original one.
+###             I foudn and corrected the miscalculation by reviewing Gavin's version of ProJIVE Mix       
 #############################################################################################################################
 args = commandArgs(trailingOnly=TRUE)
 # args = args[-1]
@@ -219,7 +221,7 @@ if (!(nm %in% files)){
   WJ.init = list(JntLd.X, JntLd.Y)
   WI.init = list(IndivLd.X, IndivLd.Y)
   init.loads = list(WJ.init, WI.init)
-  pro.oracle.time = system.time({pro.oracle.jive.res.all = ProJIVE(Y=Y, P=P, Q=Q, plots = TRUE, sig_hat = "MLE", init.loads = init.loads, num.starts = 10,
+  pro.oracle.time = system.time({pro.oracle.jive.res.all = ProJIVE(Y=Y, P=P, Q=Q, plots = TRUE, sig_hat = "MLE", init.loads = init.loads, num.starts = 1,
                                                                    center = TRUE, return.all.starts = FALSE)})
   print(paste("ProJIVE with loadings initiated from the truth done in", round(pro.oracle.time['elapsed'], 3), "sec."))
   

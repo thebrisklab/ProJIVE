@@ -755,10 +755,21 @@ obs_LogLik<-function(Y, w, d){
   N=dim(Y)[1]
   
 <<<<<<< HEAD
+<<<<<<< HEAD
   c=w%*%t(w)+d
   s=t(Y)%*%Y/N
   
   LogLik=-N/2*(ncol(Y)*log(2*pi) + log(det(c)) + sum(diag(solve(c)%*%s)))
+=======
+  
+  lik<-rep(0, N)
+  
+  
+  s=w%*%t(w)+d
+  
+  lik=dmvnorm(Y,mu,s)
+  LogLik=sum(log(lik))
+>>>>>>> a070c2cdbd768228c65e43bc788328aa0b0e6386
 =======
   
   lik<-rep(0, N)
@@ -809,7 +820,11 @@ eval_converge=function(vals_vec, diff.tol){
       return(TRUE)
     }else{
 <<<<<<< HEAD
+<<<<<<< HEAD
       diff.ll = all_obs.LogLik[len]-all_obs.LogLik[len-1]
+=======
+      diff.ll = vals_vec[len]-vals_vec[len-1]
+>>>>>>> a070c2cdbd768228c65e43bc788328aa0b0e6386
 =======
       diff.ll = vals_vec[len]-vals_vec[len-1]
 >>>>>>> a070c2cdbd768228c65e43bc788328aa0b0e6386
@@ -817,6 +832,7 @@ eval_converge=function(vals_vec, diff.tol){
     }
   }
 }
+<<<<<<< HEAD
 <<<<<<< HEAD
 
 ## Calculate empirical observed information matrix
@@ -913,6 +929,8 @@ ProJIVE_BootsratVar = function(B = 50, P, Q, theta.hat, W.hat, error.vars){
 
 =======
 >>>>>>> a070c2cdbd768228c65e43bc788328aa0b0e6386
+=======
+>>>>>>> a070c2cdbd768228c65e43bc788328aa0b0e6386
 ########################################################################
 ####################END OF PRE-DEFINED FUNCS############################
 ########################################################################
@@ -922,12 +940,16 @@ ProJIVE_BootsratVar = function(B = 50, P, Q, theta.hat, W.hat, error.vars){
 ###########       This version was originally built for K>2                                  ##################
 ###############################################################################################################
 <<<<<<< HEAD
+<<<<<<< HEAD
 ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,plots=TRUE,chord.tol=-1,
                     sig_hat=NULL, init.loads = NULL, center = FALSE, verbose = TRUE){
   
   ## init.loads must be a list of two lists - first item contains a list of joint loading matrices
   ##                                          second item is a list of indiv loading matrices
   ##                                          each matrix must have dimension p_k-by-r_
+=======
+ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,plots=TRUE,chord.tol=-1,sig_hat=NULL, init.loads = NULL){
+>>>>>>> a070c2cdbd768228c65e43bc788328aa0b0e6386
 =======
 ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,plots=TRUE,chord.tol=-1,sig_hat=NULL, init.loads = NULL){
 >>>>>>> a070c2cdbd768228c65e43bc788328aa0b0e6386
@@ -1023,11 +1045,16 @@ ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,plots=TRUE,chord.tol=-1,s
   Ip=diag(sum(P))
   
 <<<<<<< HEAD
+<<<<<<< HEAD
   # Initiate LogLik
   # all_obs.LogLik=c(-Inf)
   # all_complete.LogLik = c(-Inf)
   c_solv=Matrix::chol2inv(chol(Iq+t(w_hat)%*%solve(d_hat)%*%w_hat))
   exp.theta = U = Y%*%solve(d_hat)%*%w_hat%*%c_solv
+=======
+  c_solv=solve(Iq+t(w_hat)%*%solve(d_hat)%*%w_hat)
+  exp.theta =  Y%*%solve(d_hat)%*%w_hat%*%c_solv
+>>>>>>> a070c2cdbd768228c65e43bc788328aa0b0e6386
 =======
   c_solv=solve(Iq+t(w_hat)%*%solve(d_hat)%*%w_hat)
   exp.theta =  Y%*%solve(d_hat)%*%w_hat%*%c_solv
@@ -1054,11 +1081,15 @@ ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,plots=TRUE,chord.tol=-1,s
     d=d_hat
     
 <<<<<<< HEAD
+<<<<<<< HEAD
     c_solv=Matrix::chol2inv(chol(Iq+t(w)%*%solve(d_hat)%*%w))
     c_inv = solve(d_hat)%*%(diag(sum(P))-w%*%c_solv%*%t(w)%*%solve(d_hat))
     c_inv.w = c_inv%*%w
     w.c_in.w = t(w)%*%c_inv.w
     U = N*diag(sum(Q)) - N*w.c_in.w + t(c_inv.w)%*%S%*%c_inv.w
+=======
+    c_solv=solve(Iq+t(w)%*%solve(d_hat)%*%w)
+>>>>>>> a070c2cdbd768228c65e43bc788328aa0b0e6386
 =======
     c_solv=solve(Iq+t(w)%*%solve(d_hat)%*%w)
 >>>>>>> a070c2cdbd768228c65e43bc788328aa0b0e6386
@@ -1154,6 +1185,7 @@ ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,plots=TRUE,chord.tol=-1,s
 }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 ###############################################################################################################
 ###########   Wrapper function to conduct ProJIVE analyses (w option for multiple initial    ##################
 ###########     values for loadings), and calculate asymptotic variance                      ##################
@@ -1195,6 +1227,8 @@ ProJIVE<-function(Y, P, Q, Max.iter=10000, diff.tol=1e-5, plots=TRUE,
   return(out)
 }
 
+=======
+>>>>>>> a070c2cdbd768228c65e43bc788328aa0b0e6386
 =======
 >>>>>>> a070c2cdbd768228c65e43bc788328aa0b0e6386
 #############################################################################

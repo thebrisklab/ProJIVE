@@ -5,7 +5,7 @@
 ###########################################################################################################################
 require(Matrix); require(ggplot2); require(reshape2); require(fields); require(mvtnorm)
 require(dplyr); require(xtable);  require(MASS); require(extraDistr); require(stringr)
-require(MCMCpack)
+require(MCMCpack); require(CJIVE)
 
 ######################################################################################################################
 ###########   Generates K Simulated Datasets that follow JIVE Model using binary subject scores   ####################
@@ -756,14 +756,18 @@ obs_LogLik<-function(Y, mu, w, d){
   N=dim(Y)[1]
   
   
-  lik<-rep(0, N)
+  # lik<-rep(0, N)
   
   
   s=w%*%t(w)+d
   
-  lik=dmvnorm(Y,mu,s)
-  LogLik=sum(log(lik))
+  # lik=dmvnorm(Y,mu,s)
+  # LogLik=sum(log(lik))
   
+  P = length(mu)
+  s.inv = chol2inv(chol(s))
+  S.y = t(Y)%*%Y
+  LogLik = -N/2*(P*log(2*pi) + determinant(s)$modulus + sum(diag(s.inv%*%S.y)))
   return(LogLik)
 }
 
@@ -995,7 +999,7 @@ ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,plots=TRUE,chord.tol=-1,s
   
   # Initiate Chordal Distance
   chord.dist = NULL
-  mu_hat=apply(as.matrix(Y),2,sum) / N   
+  mu_hat=apply(as.matrix(Y),2,sum)/N   
   
   Iq=diag(sum(Q))
   Ip=diag(sum(P))
@@ -1010,9 +1014,10 @@ ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,plots=TRUE,chord.tol=-1,s
   iter=0
   
   #create flag to stop EM algorithm if/when necessary
-  flag=FALSE
   while (Max.iter>=iter 
-         & eval_converge(all_obs.LogLik,N*diff.tol))
+         & eval_converge(all_obs.LogLik,N*diff.tol)
+         & eval_converge(all_complete.LogLik,N*diff.tol)
+         )
   {
     ################## START OF EM-ALGORITHM ######################
     ## Store some values to save computation time
@@ -1030,11 +1035,21 @@ ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,plots=TRUE,chord.tol=-1,s
     
     ## Update d_tild
     
-    d_tild=S-2*w%*%t(U)+w%*%V%*%t(w)   
+    d_tild=S-2*w%*%t(U)+w%*%V%*%t(w)
+    wk_hat_old = wk_hat
+    sig_hat_old = sig_hat
     for(k in 1:K){
       
       ## Update wk_hat 
-      wk_hat[[k]]=A[[k]]%*%U%*%t(B[[k]])%*%solve(B[[k]]%*%V%*%t(B[[k]]))
+      wk_hat_temp = list()
+      wk_hat_temp[[k]]=A[[k]]%*%U%*%t(B[[k]])%*%solve(B[[k]]%*%V%*%t(B[[k]]))
+      WJ.hat_temp = wk_hat_temp[[k]][,1:Q[1], drop = FALSE]
+      WI.hat_temp = wk_hat_temp[[k]][,-c(1:Q[1]), drop = FALSE]
+      
+      WJ.new = MCMCpack::procrustes(WJ.hat_temp, WJ[[k]])$X.new
+      WI.new = MCMCpack::procrustes(WI.hat_temp, WI[[k]])$X.new
+      
+      wk_hat[[k]] = cbind(WJ.new, WI.new)
       
       ## Update sigma_hat
       sig_hat[k]=mean(diag(A[[k]]%*%diag(diag(d_tild))%*%t(A[[k]])))
@@ -1048,16 +1063,38 @@ ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,plots=TRUE,chord.tol=-1,s
     d_hat=generate_d(sig_hat,P)
     
     ################## End of EM-ALGORITHM ######################
+    iter=iter + 1
     
     # Compute subject scores
-    exp.theta = Y%*%solve(d_hat)%*%w%*%c_solv
+    c_solv=chol2inv(chol(Iq+t(w_hat)%*%solve(d_hat)%*%w_hat))
+    exp.theta = Y%*%solve(d_hat)%*%w_hat%*%c_solv
     
     all_obs.LogLik=append(all_obs.LogLik, obs_LogLik(Y, mu_hat, w_hat, d_hat))  
     all_complete.LogLik=append(all_complete.LogLik, complete_LogLik(Y, exp.theta, mu_hat, w_hat, d_hat))  
     
+    #Take previous iteration of solution if current iteration decreases LogLik
     ## Update iter
-    iter=iter + 1
+    
   }
+  
+  len = length(all_obs.LogLik)
+  temp.flag = !(all_obs.LogLik[len] < all_obs.LogLik[len-1] & all_complete.LogLik[len] < all_complete.LogLik[len-1])
+  
+  if(temp.flag){
+    w_hat=wk_to_w(wk_hat_old, P, Q)
+    chord.dist = chord.dist[1:iter]
+    all_obs.LogLik = all_obs.LogLik[1:(len-1)]
+    all_complete.LogLik = all_complete.LogLik[1:(len-1)]
+    
+    ## Update d_hat 
+    d_hat=generate_d(sig_hat_old,P)
+    
+    # Compute subject scores
+    c_solv=chol2inv(chol(Iq+t(w_hat)%*%solve(d_hat)%*%w_hat))
+    exp.theta = Y%*%solve(d_hat)%*%w_hat%*%c_solv
+  }
+  
+  ################## End of EM-ALGORITHM ######################
   
   obs_BIC = (sum(P*(Q[1]+Q[-1]))+2)*log(N)-2*all_obs.LogLik[length(all_obs.LogLik)]
   obs_AIC = (sum(P*(Q[1]+Q[-1]))+2)*2-2*all_obs.LogLik[length(all_obs.LogLik)]
@@ -1147,7 +1184,7 @@ ProJIVE<-function(Y, P, Q, Max.iter=10000, diff.tol=1e-5, plots=TRUE,
     PJIVE.res = ProJIVE.res[[which.max(obs.lik)]]
     PJIVE.scores = PJIVE.res$SubjectScoreMatrix
     PJIVE.loads.X = PJIVE.res$LoadingMatrix[1:p1,-(sum(Q):(sum(Q[-3])+1))]
-    PJIVE.loads.Y = PJIVE.res$LoadingMatrix[-(1:p1),-(r.J+1:r.I1)]
+    PJIVE.loads.Y = PJIVE.res$LoadingMatrix[-(1:p1),-(Q[1]+1:Q[2])]
     PJIVE.err.var = PJIVE.res$ErrorVariances
     
     out[["ObservedEmpireicalInfo"]] = ProJIVE_AsymVar(list(PJIVE.loads.X, PJIVE.loads.Y), PJIVE.err.var, PJIVE.scores, r.J, Y)
@@ -1602,4 +1639,11 @@ matchICA.2<-function (S, template, M = NULL) {
   else {
     t(s.perm)
   }
+}
+
+##################################################################
+###########           Sum of Eigenvalues         #################
+##################################################################
+MatVar = function(X){
+  sum(diag(X%*%t(X)))
 }

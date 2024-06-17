@@ -21,7 +21,7 @@ r.J = 3
 r.I1 = 2
 r.I2 = 2
 #outdir = args[2]
-n = 1000
+n = 2500
 p1 = 20
 p2 = 20 ####Note that p1 and p2 differ when compared to values used in simulations
 JntVarEx1 = 0.05
@@ -126,11 +126,11 @@ PJIVE.res = ProJIVE_EM(Y=Y, P=P, Q=Q, init.loads = init.loads, sig_hat = c(1,1),
 
 PJIVE.scores.unscaled = PJIVE.res$SubjectScoreMatrix
 score.SDs = apply(PJIVE.scores.unscaled, 2, sd)
-PJIVE.scores = PJIVE.scores.unscaled%*%diag(score.SDs^-1)
+PJIVE.scores = PJIVE.scores.unscaled #%*%diag(score.SDs^-1)
 PJIVE.loads.X.unscaled = PJIVE.res$LoadingMatrix[1:p1,-(sum(Q):(sum(Q[-3])+1))]
-PJIVE.loads.X = PJIVE.loads.X.unscaled%*%diag(score.SDs[1:(r.J+r.I2)])
+PJIVE.loads.X = PJIVE.loads.X.unscaled #%*%diag(score.SDs[1:(r.J+r.I2)])
 PJIVE.loads.Y.unscaled = PJIVE.res$LoadingMatrix[-(1:p1),-(r.J+1:r.I1)]
-PJIVE.loads.Y = PJIVE.loads.Y.unscaled%*%diag(score.SDs[c(1:r.J, (r.J+r.I1)+(1:r.I2))])
+PJIVE.loads.Y = PJIVE.loads.Y.unscaled #%*%diag(score.SDs[c(1:r.J, (r.J+r.I1)+(1:r.I2))])
 
 PJIVE.err.var = PJIVE.res$ErrorVariances
 
@@ -617,7 +617,6 @@ PJIVE.res = ProJIVE_EM(Y=Y, P=P, Q=Q, diff.tol=1e-5, init.loads = "CJIVE", sig_h
 PJIVE.scores = PJIVE.res$SubjectScoreMatrix
 PJIVE.loads.X = PJIVE.res$LoadingMatrix[1:p1,-(sum(Q):(sum(Q[-3])+1))]
 PJIVE.loads.Y = PJIVE.res$LoadingMatrix[-(1:p1),-(r.J+1:r.I1)]
-
 
 layout(matrix(c(1:6,4,7,8),3, byrow = TRUE))
 plot(JntScores, PJIVE.scores[,1:r.J, drop = FALSE], xlab = "True Joint Scores", ylab = "ProJIVE Joint Scores", 

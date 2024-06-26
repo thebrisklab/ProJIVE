@@ -14,15 +14,17 @@ source_python(file.path(prog.dcca.dir, "dcca_given.py"))
 gipca.files = list.files(prog.gipca.dir,full.names = TRUE)
 for(file.nm in gipca.files){source(file.nm)}
 doc.dir = "H:/My Documents/P-JIVE/Programs/Examples/Output"
+diffr("C:/Users/rmurden/OneDrive - Emory University/Documents/GitHub/ProJIVE/Functions/ProJIVE_Gavin.R",
+            "C:/Users/rmurden/OneDrive - Emory University/Documents/GitHub/ProJIVE/Functions/ProJIVE_RJM.R")
 
 ##Simulation parameters
 rep_number = 1
-r.J = 3
+r.J = 1
 r.I1 = 2
 r.I2 = 2
 #outdir = args[2]
-n = 2500
-p1 = 20
+n = 500
+p1 = 100
 p2 = 20 ####Note that p1 and p2 differ when compared to values used in simulations
 JntVarEx1 = 0.05
 JntVarEx2 = 0.05
@@ -41,7 +43,7 @@ ToyDat = GenerateToyData(n = n, p = c(p1, p2), JntVarEx = c(JntVarEx1, JntVarEx2
                          equal.eig = TRUE, IndVarEx = c(IndVarEx1, IndVarEx2),
                          jnt_rank = r.J, ind_ranks = c(r.I1, r.I2), JntVarAdj = T, 
                          SVD.plots = F, Error = T, print.cor = F, Loads = "Rademacher",
-                         Scores = "Gaussian_Mixture", error.variances = c(2,3))
+                         Scores = "Gaussian", error.variances = c(1,1))
 ## Proportions of groups for mixture
 mix.probs = c(0.2, 0.5, 0.3)
 diagnoses = factor(c(rep(1, each = n*mix.probs[1]),rep(2, each = n*mix.probs[2]),rep(3, each = n*mix.probs[3])))
@@ -117,22 +119,27 @@ true.load.dat.Y = data.frame(Name = factor(1:(p2*(r.J+r.I2)),
 true.load.dat.X$ScaledLoading = true.load.dat.X$Loading/sqrt(sum(true.load.dat.X$Loading^2))
 true.load.dat.Y$ScaledLoading = true.load.dat.Y$Loading/sqrt(sum(true.load.dat.Y$Loading^2))
 
+example.data = list(Y, P, Q)
+# save(example.data, file = "C:/Users/rmurden/OneDrive - Emory University/Documents/GitHub/ProJIVE/Examples/Example for Gavin/ToyData.RData")
+# write.csv(Y, file = "C:/Users/rmurden/OneDrive - Emory University/Documents/GitHub/ProJIVE/Examples/Example for Gavin/ToyData.csv")
+
 #########################################################################################################
 ############       ProJIVE with loadings and error variance initialized from the truth        ###########
 WJ.init = list(JntLd.X, JntLd.Y)
 WI.init = list(IndivLd.X, IndivLd.Y)
 init.loads = list(WJ.init, WI.init)
-PJIVE.res = ProJIVE_EM(Y=Y, P=P, Q=Q, init.loads = init.loads, sig_hat = c(1,1), plots = TRUE)
+PJIVE.res.RJM = ProJIVE_EM(Y=Y, P=P, Q=Q, init.loads = NULL, sig_hat = c(1,1),diff.tol = 1e-10, 
+                       plots = TRUE)#, Max.iter = -1)
 
-PJIVE.scores.unscaled = PJIVE.res$SubjectScoreMatrix
+PJIVE.scores.unscaled = PJIVE.res.RJM$SubjectScoreMatrix
 score.SDs = apply(PJIVE.scores.unscaled, 2, sd)
 PJIVE.scores = PJIVE.scores.unscaled #%*%diag(score.SDs^-1)
-PJIVE.loads.X.unscaled = PJIVE.res$LoadingMatrix[1:p1,-(sum(Q):(sum(Q[-3])+1))]
+PJIVE.loads.X.unscaled = PJIVE.res.RJM$LoadingMatrix[1:p1,-(sum(Q):(sum(Q[-3])+1))]
 PJIVE.loads.X = PJIVE.loads.X.unscaled #%*%diag(score.SDs[1:(r.J+r.I2)])
-PJIVE.loads.Y.unscaled = PJIVE.res$LoadingMatrix[-(1:p1),-(r.J+1:r.I1)]
+PJIVE.loads.Y.unscaled = PJIVE.res.RJM$LoadingMatrix[-(1:p1),-(r.J+1:r.I1)]
 PJIVE.loads.Y = PJIVE.loads.Y.unscaled #%*%diag(score.SDs[c(1:r.J, (r.J+r.I1)+(1:r.I2))])
 
-PJIVE.err.var = PJIVE.res$ErrorVariances
+PJIVE.err.var = PJIVE.res.RJM$ErrorVariances
 
 ## Since the model calls for the latent scores to have variance = 1, we should 
 ##    scale the estimated scores by the inverse of their standard deviation
@@ -178,8 +185,8 @@ ProJIVE.info = ProJIVE_AsymVar(list(PJIVE.loads.X, PJIVE.loads.Y), PJIVE.err.var
 # plot(diag(ProJIVE.info$ObservedEmpericalInformationMatrix))
 # plot(ProJIVE.info$MeanScoreVector)
 w1.score = matrix(ProJIVE.info$MeanScoreVector[1:(P[1]*(Q[1]+Q[2]))], nrow = P[1])
-# plot(w1.score[,1], JntLd.X)
-# plot(w1.score[,2], IndivLd.X)
+# plot(w1.score[,1:Q[1]], JntLd.X)
+# plot(w1.score[,-(1:Q[1])], IndivLd.X)
 w2.score = matrix(ProJIVE.info$MeanScoreVector[(P[1]*(Q[1]+Q[2]))+(1:(P[2]*(Q[1]+Q[3])))], nrow = P[2])
 # plot(w2.score[,1], JntLd.Y)
 # plot(w2.score[,2], IndivLd.Y)
@@ -295,10 +302,69 @@ prop.table(table(c(true.load.dat.X$Loading, true.load.dat.Y$Loading) <= c(load.d
                     0 <= c(true.load.dat.X$Loading, true.load.dat.Y$Loading)))
 
 
+#########################################################################################################
+############       ProJIVE2 (Gavin's)        ###########
+PJIVE.res = ProJIVE_EM2(Y=Y, P=P, Q=Q, diff.tol = 1e-10)
+plot(sort(PJIVE.res.RJM$LoadingMatrix[1:P[1],1:Q[1]]) - sort(PJIVE.res$Wk[[1]][,1:Q[1]]))
+plot(sort(PJIVE.res.RJM$LoadingMatrix[-(1:P[1]),1:Q[1]]) - sort(PJIVE.res$Wk[[2]][,1:Q[1]]))
+
+# PJIVE.scores.unscaled = PJIVE.res$
+# score.SDs = apply(PJIVE.scores.unscaled, 2, sd)
+PJIVE.loads.X = PJIVE.res$Wk[[1]]
+PJIVE.loads.Y = PJIVE.res$Wk[[2]]
+PJIVE.err.var = PJIVE.res$Sig
+w_hat = wk_to_w(wk = PJIVE.res$Wk, P = P, Q = Q)
+d_hat = diag(rep(PJIVE.err.var, P))
+
+Ip=diag(sum(P))
+Iq=diag(sum(Q))
+c_solv=solve(Iq+t(w_hat)%*%solve(d_hat)%*%w_hat)
+PJIVE.scores = exp.theta = Y%*%solve(d_hat)%*%w_hat%*%c_solv
+# PJIVE.scores = PJIVE.scores.unscaled #%*%diag(score.SDs^-1)
+
+
+## Since the model calls for the latent scores to have variance = 1, we should 
+##    scale the estimated scores by the inverse of their standard deviation
+##    and scale the loadings by the same scalar
+
+layout(matrix(c(1:6,4,7,8),3, byrow = TRUE))
+plot(JntScores, PJIVE.scores[,1:r.J, drop = FALSE], xlab = "True Joint Scores", ylab = "ProJIVE Joint Scores", 
+     col = c(rep("orange",n), rep("green",n), rep("purple",n)), 
+     sub = paste0("Chordal Norm = ", round(chord.norm.diff(JntScores, PJIVE.scores[,1:r.J, drop = FALSE]), 3), ":",
+                  " PMSE = ", round(pmse.2(S1 = JntScores, S2 = PJIVE.scores[,-(1:r.J), drop = FALSE], standardize = TRUE), 3)))
+plot(IndivScore.X, PJIVE.scores[,r.J+(1:r.I1), drop = FALSE], xlab = "True Indiv X1 Scores", ylab = "ProJIVE Indiv X1 Scores", 
+     col = c(rep("orange",n), rep("green",n)),
+     sub = paste0("Chordal Norm = ", round(chord.norm.diff(IndivScore.X, PJIVE.scores[,r.J+(1:r.I1)]), 3), ":",
+                  " PMSE = ", round(pmse.2(S1 = IndivScore.X, S2 = PJIVE.scores[,r.J+(1:r.I1), drop = FALSE], standardize = TRUE), 3)))
+plot(IndivScore.Y, PJIVE.scores[,(r.J+r.I1)+(1:r.I2)], xlab = "True Indiv X2 Scores", ylab = "ProJIVE Indiv X2 Scores", 
+     col = c(rep("orange",n), rep("green",n)),
+     sub = paste0("Chordal Norm = ", round(chord.norm.diff(IndivScore.Y, PJIVE.scores[,(r.J+r.I1)+(1:r.I2)]), 3), ":",
+                  " PMSE = ", round(pmse.2(S1 = IndivScore.Y, S2 = PJIVE.scores[,(r.J+r.I1)+(1:r.I2)], standardize = TRUE), 3)))
+plot.new(); title("ProJIVE Results \n (loadings and error variance \ninitialized  from True Values)", 
+                  sub = bquote(sigma["1"]*"="*.(round(PJIVE.err.var[1],2))*"; "*sigma["2"]*"="*.(round(PJIVE.err.var[2],2))))
+legend("left", paste("Comp.", 1:r.J), pch = 1, col  = c("orange", "green", "purple")[1:r.J], bty = "n" )
+plot(JntLd.X, PJIVE.loads.X[,1:r.J, drop = FALSE], xlab = "True Joint Loadings X1", ylab = "ProJIVE Joint Loadings X1", 
+     col = c(rep("orange",p1), rep("green",p1), rep("purple",p1)),  
+     sub = paste0("Chordal Norm = ", round(chord.norm.diff(JntLd.X, PJIVE.loads.X[,1:r.J, drop = FALSE]), 3), ":",
+                  " PMSE = ", round(pmse.2(S1 = JntLd.X, S2 = PJIVE.loads.X[,1:r.J, drop = FALSE], standardize = TRUE), 3)))
+plot(JntLd.Y, PJIVE.loads.Y[,1:r.J, drop = FALSE], xlab = "True Joint Loadings X2", ylab = "ProJIVE Joint Loadings X2", 
+     col = c(rep("orange",p2), rep("green",p2), rep("purple",p2)),  
+     sub = paste0("Chordal Norm = ", round(chord.norm.diff(JntLd.Y, PJIVE.loads.Y[,1:r.J, drop = FALSE]), 3), ":",
+                  " PMSE = ", round(pmse.2(S1 = JntLd.Y, S2 = PJIVE.loads.Y[,1:r.J, drop = FALSE], standardize = TRUE), 3)))
+plot(IndivLd.X, PJIVE.loads.X[,-(1:r.J)], xlab = "True Individual Loadings X", ylab = "ProJIVE Individual Loadings X", 
+     col = c(rep("orange",p1), rep("green",p1)), 
+     sub = paste0("Chordal Norm = ", round(chord.norm.diff(IndivLd.X, PJIVE.loads.X[,-(1:r.J)]), 3), ":",
+                  " PMSE = ", round(pmse.2(S1 = IndivLd.X, S2 = PJIVE.loads.X[,-(1:r.J)], standardize = TRUE), 3)))
+plot(IndivLd.Y, PJIVE.loads.Y[,-(1:r.J)], xlab = "True Individual Loadings X2", ylab = "ProJIVE Individual Loadings X2", 
+     col = c(rep("orange",p2), rep("green",p2)), 
+     sub = paste0("Chordal Norm = ", round(chord.norm.diff(IndivLd.Y, PJIVE.loads.Y[,-(1:r.J)]), 3), ":",
+                  " PMSE = ", round(pmse.2(S1 = IndivLd.Y, S2 = PJIVE.loads.Y[,-(1:r.J)], standardize = TRUE), 3)))
+layout(1)
+
 #########################################################################################################################
 ############       ProJIVE with loadings and error variance initialized from the truth and centering Y        ###########
 # PJIVE.res = ProJIVE_EM(Y=Y, P=P, Q=Q, init.loads = init.loads, sig_hat = c(1,1), plots = TRUE, center = TRUE)
-PJIVE.res = ProJIVE(Y=Y, P=P, Q=Q, init.loads = init.loads, sig_hat = c(1,1), plots = TRUE, num.starts = 2,
+PJIVE.res = ProJIVE(Y=Y, P=P, Q=Q, init.loads = init.loads, sig_hat = c(1,1), plots = TRUE, num.starts = 1, 
                     center = TRUE, return.all.starts = TRUE)
 
 PJIVE.scores = PJIVE.res$ProJIVE_Results[[1]]$SubjectScoreMatrix
@@ -395,7 +461,7 @@ layout(1)
 
 #############################################
 ############### ProJIVE  ####################
-PJIVE.res = ProJIVE_EM(Y=Y, P=P, Q=Q, plots = TRUE)
+PJIVE.res = ProJIVE_EM(Y=Y, P=P, Q=Q, plots = TRUE, chord.tol = 1e-10, diff.tol = 1e-10, init.loads = "CJIVE")
 
 PJIVE.scores = PJIVE.res$SubjectScoreMatrix
 PJIVE.loads.X = PJIVE.res$LoadingMatrix[1:p1,-(sum(Q):(sum(Q[-3])+1))]

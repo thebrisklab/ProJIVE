@@ -105,9 +105,11 @@ dev.off()
 # print(load.plot.20)
 # dev.off()
 
-Time.Table_p220_n1000_rJ1 = aggregate(cbind(R.JIVE_Time, AJIVE_Time, ProJIVE_Time, GIPCA_Time) 
-                                       ~ JntVarEx1 + JntVarEx2 + p2 + n + r.J, data = AllSims.rows, 
-                                       FUN = function(x) paste0(round(mean(x/60),1), " (", round(sd(x/60),3), ")"))
+Time.Table_p220_n1000_rJ1 =
+  aggregate(cbind(OracleProJIVE_Time, ProJIVE_Time, AJIVE_Time, R.JIVE_Time, 
+                  GIPCA_Time, dCCA_Time) ~ JntVarEx1 + JntVarEx2 + p2 + n + r.J,
+            data = AllSims.rows,
+            FUN = function(x) paste0(round(mean(x/60),1), " (", round(sd(x/60),3), ")"))
 
 VarEx.dat.gg = MakeVarEx.data.gg(AllSims.rows, 20, 20, 1000)
 x.labs = c(expression("Joint"*"X"[1]), expression("Joint"*"X"[2]),
@@ -255,10 +257,10 @@ AllSims20[,"Indiv.Var.Exp.X"] = 0.25
 AllSims20[,"Indiv.Var.Exp.Y"] = 0.25
 AllSims20.rows = rbind(sim.20.results.005005, sim.20.results.05005, sim.20.results.00505, sim.20.results.0505)
 
-# AllSims20.rows[,"n"] = 1000; AllSims20.rows[,"r.J"] = 3;
-# Time.Table_p220_n1000_rJ3 = aggregate(cbind(OracleProJIVE_Time, ProJIVE_Time, AJIVE_Time, R.JIVE_Time, GIPCA_Time,  dCCA_Time) 
-#                                       ~ JntVarEx1 + JntVarEx2 + p2 + n + r.J, data = AllSims20.rows, 
-#                                       FUN = function(x) paste0(round(mean(x/60),1), " (", round(sd(x/60),3), ")"))
+AllSims20.rows[,"n"] = 1000; AllSims20.rows[,"r.J"] = 3;
+Time.Table_p220_n1000_rJ3 = aggregate(cbind(OracleProJIVE_Time, ProJIVE_Time, AJIVE_Time, R.JIVE_Time, GIPCA_Time,  dCCA_Time)
+                                      ~ JntVarEx1 + JntVarEx2 + p2 + n + r.J, data = AllSims20.rows,
+                                      FUN = function(x) paste0(round(mean(x/60),1), " (", round(sd(x/60),3), ")"))
 sim.20.gg = ConvSims_gg_ProJIVE2(AllSims20, 1000)
 sim.20.gg.data = sim.20.gg$Norms
 sim.20.scores = sim.20.gg.data[grep("Score", sim.20.gg.data[,"Type"]),]
@@ -346,11 +348,11 @@ AllSims200[,"Indiv.Var.Exp.Y"] = 0.25
 AllSims200.rows = rbind(sim.200.results.005005, sim.200.results.05005, sim.200.results.00505, sim.200.results.0505)
 
 AllSims200.rows[,"n"] = 1000; AllSims200.rows[,"r.J"] = 3;
-# Time.Table_p2200_n1000_rJ3 = aggregate(cbind(AJIVE_Time, R.JIVE_Time, ProJIVE_Time, GIPCA_Time) 
-#                                        ~ JntVarEx1 + JntVarEx2 + p2 + n + r.J, data = AllSims200.rows, 
-#                                        FUN = function(x) paste0(round(mean(x/60),1), " (", round(sd(x/60),3), ")"))
-# Time.Table_n1000_rJ3 = rbind(Time.Table_p220_n1000_rJ3, Time.Table_p2200_n1000_rJ3)
-# Time.Table_rJ3 = rbind(Time.Table_n500_rJ3, Time.Table_n1000_rJ3)
+Time.Table_p2200_n1000_rJ3 = aggregate(cbind(OracleProJIVE_Time, ProJIVE_Time, AJIVE_Time, R.JIVE_Time,  GIPCA_Time, dCCA_Time)
+                                       ~ JntVarEx1 + JntVarEx2 + p2 + n + r.J, data = AllSims200.rows,
+                                       FUN = function(x) paste0(round(mean(x/60),1), " (", round(sd(x/60),3), ")"))
+Time.Table_n1000_rJ3 = rbind(Time.Table_p220_n1000_rJ3, Time.Table_p2200_n1000_rJ3)
+Time.Table_rJ3 = rbind(Time.Table_n500_rJ3, Time.Table_n1000_rJ3)
 
 sim.200.gg = ConvSims_gg_ProJIVE2(AllSims200, 1000)
 sim.200.gg.data = sim.200.gg$Norms
@@ -428,7 +430,7 @@ ggsave(file.path(imgs.fldr_n1000_rJ3, paste0("GG_VarEx_n1000_rJ3_p2_200_", lubri
 # apply(GG.Time.Table[,6:9], 2, function(x) str_extract(x, "(?<=.)[:space:]"))
 
 # GG.Mean.Time.Table = cbind(GG.Time.Table[,1:5], str_extract(GG.Time.Table[,6:9], "^[:space:]"))
-# lm(cbind(AJIVE_Time, R.JIVE_Time, ProJIVE_Time, GIPCA_Time)~n , data = as.data.frame(GG.Time.Table))
+# lm(cbind(OracleProJIVE_Time, ProJIVE_Time, AJIVE_Time, R.JIVE_Time,  GIPCA_Time, dCCA_Time)~n , data = as.data.frame(GG.Time.Table))
 
 # ########################################################################################################################
 # ########################################################################################################################
@@ -469,7 +471,7 @@ ggsave(file.path(imgs.fldr_n1000_rJ3, paste0("GG_VarEx_n1000_rJ3_p2_200_", lubri
 # AllSims.rows = rbind(sim.results.005005, sim.results.05005, sim.results.00505, sim.results.0505)
 # 
 # AllSims.rows[,"n"] = 500; AllSims.rows[,"r.J"] = 1;
-# Time.Table_p220_n500_rJ1 = aggregate(cbind(AJIVE_Time, R.JIVE_Time, ProJIVE_Time, GIPCA_Time) 
+# Time.Table_p220_n500_rJ1 = aggregate(cbind(OracleProJIVE_Time, ProJIVE_Time, AJIVE_Time, R.JIVE_Time,  GIPCA_Time, dCCA_Time) 
 #                                      ~ JntVarEx1 + JntVarEx2 + p2 + n + r.J, data = AllSims.rows, 
 #                                      FUN = function(x) paste0(round(mean(x/60),1), " (", round(sd(x/60),3), ")"))
 # 
@@ -650,7 +652,7 @@ ggsave(file.path(imgs.fldr_n1000_rJ3, paste0("GG_VarEx_n1000_rJ3_p2_200_", lubri
 # AllSims.rows = rbind(sim.results.005005, sim.results.05005, sim.results.00505, sim.results.0505)
 # 
 # AllSims.rows[,"n"] = 500; AllSims.rows[,"r.J"] = 3;
-# Time.Table_p220_n500_rJ3 = aggregate(cbind(AJIVE_Time, R.JIVE_Time, ProJIVE_Time, GIPCA_Time) 
+# Time.Table_p220_n500_rJ3 = aggregate(cbind(OracleProJIVE_Time, ProJIVE_Time, AJIVE_Time, R.JIVE_Time,  GIPCA_Time, dCCA_Time) 
 #                                      ~ JntVarEx1 + JntVarEx2 + p2 + n + r.J, data = AllSims.rows, 
 #                                      FUN = function(x) paste0(round(mean(x/60),1), " (", round(sd(x/60),3), ")"))
 # 
@@ -736,7 +738,7 @@ ggsave(file.path(imgs.fldr_n1000_rJ3, paste0("GG_VarEx_n1000_rJ3_p2_200_", lubri
 # AllSims.rows = rbind(sim.results.005005, sim.results.05005, sim.results.00505, sim.results.0505)
 # 
 # AllSims.rows[,"n"] = 500; AllSims.rows[,"r.J"] = 3;
-# Time.Table_p2200_n500_rJ3 = aggregate(cbind(AJIVE_Time, R.JIVE_Time, ProJIVE_Time, GIPCA_Time) 
+# Time.Table_p2200_n500_rJ3 = aggregate(cbind(OracleProJIVE_Time, ProJIVE_Time, AJIVE_Time, R.JIVE_Time,  GIPCA_Time, dCCA_Time) 
 #                                       ~ JntVarEx1 + JntVarEx2 + p2 + n + r.J, data = AllSims.rows, 
 #                                       FUN = function(x) paste0(round(mean(x/60),1), " (", round(sd(x/60),3), ")"))
 # Time.Table_n500_rJ3 = rbind(Time.Table_p220_n500_rJ3, Time.Table_p2200_n500_rJ3)

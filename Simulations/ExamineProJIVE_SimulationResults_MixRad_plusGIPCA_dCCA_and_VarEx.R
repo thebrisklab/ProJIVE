@@ -62,17 +62,17 @@ sim.results.005005 = GetSimResults_Dir(file.path(results.dir_n1000_rJ1,"SimBin_P
 ##############################################################################################################################
 #############################Make Plots and Images    ########################################################################
 ##############################################################################################################################
-Allsims20 = cbind(sim.results.005005, sim.results.05005, sim.results.00505, sim.results.0505)
-Allsims20[,"Indiv.Var.Exp.X"] = 0.25
-Allsims20[,"Indiv.Var.Exp.Y"] = 0.25
-Allsims20.rows = rbind(sim.results.005005, sim.results.05005, sim.results.00505, sim.results.0505)
+AllSims20 = cbind(sim.results.005005, sim.results.05005, sim.results.00505, sim.results.0505)
+AllSims20[,"Indiv.Var.Exp.X"] = 0.25
+AllSims20[,"Indiv.Var.Exp.Y"] = 0.25
+AllSims20.rows = rbind(sim.results.005005, sim.results.05005, sim.results.00505, sim.results.0505)
 
-Allsims20.rows[,"n"] = 1000; Allsims20.rows[,"r.J"] = 1;
+AllSims20.rows[,"n"] = 1000; AllSims20.rows[,"r.J"] = 1;
 Time.Table_p220_n1000_rJ1 = aggregate(cbind(OracleProJIVE_Time, ProJIVE_Time, AJIVE_Time, R.JIVE_Time, GIPCA_Time, dCCA_Time) 
-                                      ~ JntVarEx1 + JntVarEx2 + p2 + n + r.J, data = Allsims20.rows, 
+                                      ~ JntVarEx1 + JntVarEx2 + p2 + n + r.J, data = AllSims20.rows, 
                                       FUN = function(x) paste0(round(mean(x/60),1), " (", round(sd(x/60),3), ")"))
 
-sim.20.gg = ConvSims_gg_ProJIVE2(Allsims20, 1000)
+sim.20.gg = ConvSims_gg_ProJIVE2(AllSims20, 1000)
 sim.20.gg.data = sim.20.gg$Norms
 
 norm.plot.20 = gg.norm.plot.2(sim.20.gg.data, cbPalette[2:7], text.size = 15, show.legend = TRUE)
@@ -108,7 +108,7 @@ dev.off()
 # print(load.plot)
 # # dev.off()
 
-VarEx.dat.gg = MakeVarEx.data.gg(Allsims20.rows, 20, 20, 1000)
+VarEx.dat.gg = MakeVarEx.data.gg(AllSims20.rows, 20, 20, 1000)
 x.labs = c(expression("Joint"*"X"[1]), expression("Joint"*"X"[2]),
            expression("Indiv"*"X"[1]), expression("Indiv"*"X"[2]))
 
@@ -794,7 +794,7 @@ write.csv(MR.Time.Table, file = "H:/My Documents/ProJIVE/Results/Simulation_Resu
 #        width = 5, height = 4, units = "in")
 
 # Time.Table_p220_rJ1.SD.Mean = aggregate(cbind(OracleProJIVE_Time, ProJIVE_Time, AJIVE_Time, R.JIVE_Time, GIPCA_Time, dCCA_Time) 
-#                                         ~ JntVarEx1 + JntVarEx2 + p2, data = Allsims20.rows, FUN = function(x) round(mean(x/60),2))
+#                                         ~ JntVarEx1 + JntVarEx2 + p2, data = AllSims20.rows, FUN = function(x) round(mean(x/60),2))
 # Time.Table_p220_rJ1.SD.SD = aggregate(cbind(OracleProJIVE_Time, ProJIVE_Time, AJIVE_Time, R.JIVE_Time, GIPCA_Time, dCCA_Time) 
-#                                       ~ JntVarEx1 + JntVarEx2 + p2, data = Allsims20.rows, FUN = function(x) round(sd(x/60),2))
+#                                       ~ JntVarEx1 + JntVarEx2 + p2, data = AllSims20.rows, FUN = function(x) round(sd(x/60),2))
 # 

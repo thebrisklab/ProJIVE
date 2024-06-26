@@ -21,6 +21,9 @@
 ###             This helps to ensure that PMSE is calculated and doesn't cause the entire simulation to fail
 ### 26JUL2023: Finally fixed the ProJIVE script! I had a miscalculation of the data covariance matrix S in the original one.
 ###             I foudn and corrected the miscalculation by reviewing Gavin's version of ProJIVE Mix       
+### 17JUN2024: Fixed another (several) bug(s) in the ProJIVE script. It now gives the same results as Gavin's ProJIVE Mix 
+###             with G = 1 also discovered that we need to make difference tolerance more strict to guarantee convergence. 
+###             Now decreased the tolerance to 1e-9.
 #############################################################################################################################
 args = commandArgs(trailingOnly=TRUE)
 # args = args[-1]
@@ -66,14 +69,11 @@ if (!(nm %in% files)){
   #######JIVE Implementations for Toy Data No 1################################################################################
   ###Setup input parameters for JIVE implementations
   true_signal_ranks = r.J + c(r.I1,r.I2)                          ##true jranks of overall signals
-  # ToyDat = GenerateToyData(n = n, p1 = p1, p2 = p2, JntVarEx1 = JntVarEx1, JntVarEx2 = JntVarEx2, 
-  #                          IndVarEx1 = IndVarEx1, IndVarEx2 =  IndVarEx2, jnt_rank = r.J,
-  #                          equal.eig = F,ind_rank1 = r.I1, ind_rank2 = r.I2, JntVarAdj = T, SVD.plots = F,
-  #                          Error = T, print.cor = F, Loads = "Gaussian", Scores = "Gaussian_Mixture")
-  ToyDat = GenerateToyData(n = n, p = c(p1, p2), JntVarEx = c(JntVarEx1, JntVarEx2), 
-                           IndVarEx = c(IndVarEx1, IndVarEx2), jnt_rank = r.J,
-                           equal.eig = F, ind_ranks = c(r.I1, r.I2), JntVarAdj = T, SVD.plots = F,
-                           Error = T, print.cor = F, Loads = "Rademacher", Scores = "Gaussian_Mixture")
+  ToyDat = GenerateToyData(n = n, p = c(p1, p2), JntVarEx = c(JntVarEx1, JntVarEx2),
+                           equal.eig = FALSE, IndVarEx = c(IndVarEx1, IndVarEx2),
+                           jnt_rank = r.J, ind_ranks = c(r.I1, r.I2), JntVarAdj = T, 
+                           SVD.plots = F, Error = T, print.cor = F, Loads = "Rademacher",
+                           Scores = "Gaussian_Mixture", error.variances = c(1,1))
   
   blocks <- ToyDat[[2]]
   rnd.smp = sample(n, n/2)
@@ -222,7 +222,7 @@ if (!(nm %in% files)){
   WI.init = list(IndivLd.X, IndivLd.Y)
   init.loads = list(WJ.init, WI.init)
   pro.oracle.time = system.time({pro.oracle.jive.res.all = ProJIVE(Y=Y, P=P, Q=Q, plots = TRUE, sig_hat = "MLE", init.loads = init.loads, num.starts = 1,
-                                                                   center = TRUE, return.all.starts = FALSE)})
+                                                                   center = TRUE, return.all.starts = FALSE, diff.tol = 1e-9)})
   print(paste("ProJIVE with loadings initiated from the truth done in", round(pro.oracle.time['elapsed'], 3), "sec."))
   
   pro.oracle.jive.res = pro.oracle.jive.res.all[[1]]
@@ -264,7 +264,7 @@ if (!(nm %in% files)){
   pro.oracle.ind.VarEx.Y = pro.oracle.jive.res$VarianceExplained[[2]][2]
   
   #### Apply ProJIVE-Init Oracle
-  pro.time = system.time({pro.jive.res = ProJIVE_EM(Y=Y, P=P, Q=Q, plots = TRUE, sig_hat = "MLE", init.loads = "CJIVE")})
+  pro.time = system.time({pro.jive.res = ProJIVE_EM(Y=Y, P=P, Q=Q, plots = TRUE, sig_hat = "MLE", init.loads = "CJIVE", diff.tol = 1e-9)})
   print(paste("ProJIVE (with AJIVE initiated Loadings) done in", round(pro.time['elapsed'], 3), "sec."))
   
   #####Retrieve results from pro_Oracle with ranks not specified: use permutation method to find them

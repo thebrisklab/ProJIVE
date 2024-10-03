@@ -401,12 +401,17 @@ ConvSims_gg_ProJIVE<-function(AllSims){
   p2 = unique(AllSims$p2)
   
   JVE_1 =  c(as.matrix(AllSims[,grep("JntVarEx1",sim.names)]))
-  JVE1.labs = c(bquote("R"[J1]^2*"=0.05, p"[1]*"="*.(p1)), bquote("R"[J1]^2*"=0.5, p"[1]*"="*.(p1)))
-  JVE_1.raw = factor(JVE_1, labels = JVE1.labs, levels = c(0.05, 0.5))
+  JVE1.labs = c(bquote("R"[J1]^2*"=0.05, p"[1]*"="*.(p1)),
+                bquote("R"[J1]^2*"=0.1, p"[1]*"="*.(p1)),
+                bquote("R"[J1]^2*"=0.5, p"[1]*"="*.(p1)))
+  
+  JVE_1.raw = factor(JVE_1, labels = JVE1.labs, levels = c(0.05, 0.1, 0.5))
   
   JVE_2 = c(as.matrix(AllSims[,grep("JntVarEx2",sim.names)]))
-  JVE2.labs = c(bquote("R"[J2]^2*"=0.05, p"[2]*"="*.(p2)), bquote("R"[J2]^2*"=0.5, p"[2]*"="*.(p2)) )
-  JVE_2.raw = factor(JVE_2, labels = JVE2.labs, levels = c(0.05, 0.5))
+  JVE2.labs = c(bquote("R"[J2]^2*"=0.05, p"[2]*"="*.(p2)),
+                bquote("R"[J2]^2*"=0.1, p"[2]*"="*.(p2)),
+                bquote("R"[J2]^2*"=0.5, p"[2]*"="*.(p2)))
+  JVE_2.raw = factor(JVE_2, labels = JVE2.labs, levels = c(0.05, 0.1, 0.5))
   
   IVE_1 = c(as.matrix(AllSims[,grep("IndivVarExp_X|Indiv.Var.Exp.X", sim.names)]))
   IVE_1 = round(as.numeric(IVE_1), 2)
@@ -485,14 +490,18 @@ ConvSims_gg_ProJIVE2<-function(AllSims, n){
   # JVE1.labs = c(bquote("R"[J1]^2*"=0.05, p"[1]*"="*.(p1)*", n="*.(n)), bquote("R"[J1]^2*"=0.5, p"[1]*"="*.(p1)))# *", n="*.(n)))
   # JVE2.labs = c(bquote("R"[J2]^2*"=0.05, p"[2]*"="*.(p2)*", n="*.(n)), bquote("R"[J2]^2*"=0.5, p"[2]*"="*.(p2)))# *", n="*.(n)))
   
-  JVE1.labs = c(bquote("R"[J1]^2*"=0.05, p"[1]*"="*.(p1)), bquote("R"[J1]^2*"=0.5, p"[1]*"="*.(p1)))# *", n="*.(n)))
-  JVE2.labs = c(bquote("R"[J2]^2*"=0.05, p"[2]*"="*.(p2)), bquote("R"[J2]^2*"=0.5, p"[2]*"="*.(p2)))# *", n="*.(n)))
-
+  JVE1.labs = c(bquote("R"[J1]^2*"=0.05, p"[1]*"="*.(p1)),
+                bquote("R"[J1]^2*"=0.1, p"[1]*"="*.(p1)),
+                bquote("R"[J1]^2*"=0.5, p"[1]*"="*.(p1)))
+  JVE2.labs = c(bquote("R"[J2]^2*"=0.05, p"[2]*"="*.(p2)),
+                bquote("R"[J2]^2*"=0.1, p"[2]*"="*.(p2)),
+                bquote("R"[J2]^2*"=0.5, p"[2]*"="*.(p2)))
+  
   JVE_1 =  c(as.matrix(AllSims[,grep("JntVarEx1",sim.names)]))
-  JVE_1.raw = factor(JVE_1, labels = JVE1.labs, levels = c(0.05, 0.5))
+  JVE_1.raw = factor(JVE_1, labels = JVE1.labs, levels = c(0.05, 0.1, 0.5))
   
   JVE_2 = c(as.matrix(AllSims[,grep("JntVarEx2",sim.names)]))
-  JVE_2.raw = factor(JVE_2, labels = JVE2.labs, levels = c(0.05, 0.5))
+  JVE_2.raw = factor(JVE_2, labels = JVE2.labs, levels = c(0.05, 0.1, 0.5))
   
   IVE_1 = c(as.matrix(AllSims[,grep("Indiv.Var.Exp.X", sim.names)]))
   IVE_1 = round(as.numeric(IVE_1), 2)
@@ -1164,19 +1173,48 @@ ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-8,plots=TRUE,chord.tol=-1,s
 ###########   Wrapper function to conduct ProJIVE analyses (w option for multiple initial    ##################
 ###########     values for loadings), and calculate asymptotic variance                      ##################
 ###############################################################################################################
-ProJIVE<-function(Y, P, Q, Max.iter=10000, diff.tol=1e-5, plots=TRUE, 
+ProJIVE<-function(Y, P, Q, Max.iter=5000, diff.tol=1e-5, plots=TRUE, 
                   chord.tol=-1, sig_hat=NULL, init.loads = NULL, center = FALSE, 
-                  num.starts = 1, AsymVar = FALSE, return.all.starts = FALSE){
+                  num.starts = 5, AsymVar = FALSE, return.all.starts = FALSE){
   ProJIVE.res = list()
   obs.lik = NULL
   for(start in 1:num.starts){
-    if(start==1){
-      init.loads.in = init.loads
-    } else{
-      init.loads.in = NULL
-    }
+    if(is.list(init.loads) | is.character(init.loads)){
+      if(start==1){
+        init.loads.in = init.loads
+      } else if(start==2){
+          init.loads.in = NULL
+      } else if(start==3){
+          init.loads.in = "CJIVE"
+      } else if(start>=4){
+        init.loads = list()
+        WJ.init = WI.init = list()
+        for(ind in 1:length(P)){
+          WJ.init[[ind]] = matrix(rnorm(P[ind]*Q[1]), nrow = P[ind])
+          WI.init[[ind]] = matrix(rnorm(P[ind]*Q[1+ind]), nrow = P[ind])
+        }
+        init.loads.in = list(WJ.init, WI.init)
+      }
+    } else if(!is.list(init.loads)){
+      if(start==1){
+        init.loads.in = NULL
+      } else if(start==2){
+        init.loads.in = "CJIVE"
+      } else if(start>=3){
+        init.loads = list()
+        WJ.init = WI.init = list()
+        for(ind in 1:length(P)){
+          WJ.init[[ind]] = matrix(rnorm(P[ind]*Q[1]), nrow = P[ind])
+          WI.init[[ind]] = matrix(rnorm(P[ind]*Q[1+ind]), nrow = P[ind])
+        }
+        init.loads.in = list(WJ.init, WI.init)
+      }
+    } 
+    
     ProJIVE.res[[start]] = ProJIVE_EM(Y, P, Q, Max.iter, diff.tol, plots, 
                                       chord.tol, sig_hat, init.loads.in)
+    cat(paste0("Start number ", start, " completed.\n", 
+              "************************************** \n"))
     obs.lik = c(obs.lik, tail(ProJIVE.res[[start]]$`Observed-Data-Log-Likelihood`, n=1))
   }
   out = list()
@@ -1186,7 +1224,7 @@ ProJIVE<-function(Y, P, Q, Max.iter=10000, diff.tol=1e-5, plots=TRUE,
     out[["ObservedDataLogLikelihood"]] = obs.lik
   } else if(!return.all.starts){
     out[["ProJIVE_Results"]] = ProJIVE.res[[which.max(obs.lik)]]
-    out[["ObservedDataLogLikelihood"]] = obs.lik[which.max(obs.lik)]
+    out[["ObservedDataLogLikelihood"]] = obs.lik
   }
   
   if(AsymVar){
@@ -1261,11 +1299,15 @@ raincloundplots_rjm <- function(data, x, y, cols.in = NULL, lab.inputs){
 #############################################################################
 MakeVarEx.data.gg <- function(AllSims.rows, p1, p2, n){
   
-  JVE1.labs = c(bquote("R"[J1]^2*"=0.05, p"[1]*"="*.(p1)*", n="*.(n)), bquote("R"[J1]^2*"=0.5, p"[1]*"="*.(p1)*", n="*.(n)))
-  JVE2.labs = c(bquote("R"[J2]^2*"=0.05, p"[2]*"="*.(p2)*", n="*.(n)), bquote("R"[J2]^2*"=0.5, p"[2]*"="*.(p2)*", n="*.(n)))
+  JVE1.labs = c(bquote("R"[J1]^2*"=0.05, p"[1]*"="*.(p1)),
+                bquote("R"[J1]^2*"=0.1, p"[1]*"="*.(p1)),
+                bquote("R"[J1]^2*"=0.5, p"[1]*"="*.(p1)))
+  JVE2.labs = c(bquote("R"[J2]^2*"=0.05, p"[2]*"="*.(p2)),
+                bquote("R"[J2]^2*"=0.1, p"[2]*"="*.(p2)),
+                bquote("R"[J2]^2*"=0.5, p"[2]*"="*.(p2)))
   
-  AllSims.rows$JntVarEx1.fac =  factor(AllSims.rows$JntVarEx1, labels = JVE1.labs, levels = c(0.05, 0.5))
-  AllSims.rows$JntVarEx2.fac =  factor(AllSims.rows$JntVarEx2, labels = JVE2.labs, levels = c(0.05, 0.5))
+  AllSims.rows$JntVarEx1.fac =  factor(AllSims.rows$JntVarEx1, labels = JVE1.labs, levels = c(0.05, 0.1, 0.5))
+  AllSims.rows$JntVarEx2.fac =  factor(AllSims.rows$JntVarEx2, labels = JVE2.labs, levels = c(0.05, 0.1, 0.5))
   
   JntVar.Table_p220_rJ1.SD = aggregate(True_JointVarExp_X ~ JntVarEx1.fac + JntVarEx2.fac, data = AllSims.rows, FUN = mean)
   JntVar.Table_p220_rJ1.SD = cbind(JntVar.Table_p220_rJ1.SD, aggregate(True_JointVarExp_X ~ JntVarEx1.fac + JntVarEx2.fac, data = AllSims.rows, FUN = sd)[3])
@@ -1653,273 +1695,280 @@ matchICA.2<-function (S, template, M = NULL) {
 ##################################################################
 ###########       Gavin's version of ProJIVE     #################
 ##################################################################
-# ProJIVE_EM2=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,print=TRUE){
-#   
-#   ## Primary Parameters    
-#   # Y=as.matrix(df[1:6]);G=1;P=c(3,3);Q=c(1,1,1);Max.iter=10000;diff.tol=1e-5
-#   
-#   
-#   
-#   
-#   ########################################################################
-#   ####################START OF PRE-DEFINED FUNCS##########################
-#   ########################################################################
-#   ## FUNC to Generate the corresponding Ak and Bk:
-#   generate_ab=function(m,n){
-#     return(matrix(rep(0,n*m),nrow=n,ncol=m))
-#   }
-#   
-#   
-#   ## FUNC to generate list(G) of W matrix with right dimension
-#   generate_w=function(k){
-#     r=lapply(Q,generate_ab,P[k])
-#     r[[1]]=as.matrix(wk_hat[[k]][1:P[k],1:Q[1]], nrow=P[k], ncol=Q[1])
-#     r[[k+1]]=as.matrix(wk_hat[[k]][1:P[k],Q[1]+1:Q[k+1]], nrow=P[k], ncol=Q[k+1])
-#     return(do.call('cbind',r))
-#   }
-#   
-#   ## FUNC to generate list(G) of W matrix from W_k matrices
-#   wk_to_w=function(wk){
-#     
-#     w=do.call('rbind',lapply(1:K,generate_w))
-#     
-#     return(w)
-#   }
-#   
-#   ## FUNC to generate list(G) of D matrix from sigma vectors
-#   generate_d=function(sig_lst, p_vec){
-#     
-#     d=list()
-#     for(k in 1:K){
-#       d[[k]]=rep(sig_lst[k],p_vec[k])
-#     }
-#     D=diag(unlist(d))
-#     
-#     return(D)
-#   }
-#   
-#   obs_LogLik<-function(Y, mu, w, d){
-#     ##############################################
-#     # input:    -mu    :a G list of d dimension vectors
-#     #           -w     :a G list of dxp matrices
-#     #           -d     :a G list of d length vector indicating the noise
-#     #           -Y     :a nxd data frame as the observations
-#     #           
-#     # output:   a real value of the log likelihood
-#     ##############################################
-#     
-#     N=dim(Y)[1]
-#     
-#     
-#     lik<-rep(0, N)
-#     
-#     
-#     #         w=cbind(do.call(rbind,wj[[g]]),as.matrix(bdiag(wi[[g]])))
-#     s=w%*%t(w)+d
-#     
-#     lik=dmvnorm(Y,mu,s)
-#     
-#     
-#     LogLik=sum(log(lik))
-#     
-#     return(LogLik)
-#   }
-#   
-#   ## FUNC to evaluate convergence in the loop
-#   eval_converge=function(vals_vec){
-#     if(length(vals_vec)==1) {
-#       return(TRUE)
-#     }else{
-#       if(vals_vec[length(vals_vec)]==-Inf){
-#         return(TRUE)
-#       }else{
-#         return(abs(all_obs.LogLik[length(all_obs.LogLik)]-all_obs.LogLik[length(all_obs.LogLik)-1])>=(N*diff.tol))
-#       }
-#     }
-#   }
-#   ########################################################################
-#   ####################END OF PRE-DEFINED FUNCS############################
-#   ########################################################################
-#   
-#   
-#   
-#   
-#   #p_1=3, p_2=3, q_J=1, q_1=1, q_2=1
-#   # P=c(3,3)   # Dimensions of feature blocks:p_1, p_2 
-#   # Q=c(1,1,1) # Dimensions of scores: q_J, q_1, q_2
-#   
-#   
-#   # KM=kmeans(Y,G)
-#   # KMcenters=t(KM$centers)
-#   
-#   # mu_hat=list(rep(0,6),rep(1,6),rep(2,6))               # Initializationf of mu_hat
-#   # mu_hat=split(KMcenters, rep(1:ncol(KMcenters), each = nrow(KMcenters))) # Initializationf of mu_hat
-#   
-#   # pie_hat=rep(1,G)/G                                    # Initializationf of pie_hat
-#   # actually no need to initialize pie
-#   
-#   
-#   ## Secondary Parameters
-#   
-#   # Total sample size
-#   N=dim(Y)[1]
-#   
-#   # Total number feature blocks
-#   if(length(P)==(length(Q)-1)){
-#     K=length(P)
-#   } else{
-#     stop("Error: The number of feature blocks don not match the number of invididual scores")
-#   }
-#   
-#   # Selection matrices A_knd B_k
-#   A=list()
-#   B=list()
-#   for(k in 1:K){
-#     up=lapply(Q,generate_ab,Q[1])
-#     up[[1]]=diag(Q[1])
-#     down=lapply(Q,generate_ab,Q[(k+1)])
-#     down[[(k+1)]]=diag(Q[(k+1)])
-#     B[[k]]=rbind(do.call("cbind",up),
-#                  do.call("cbind",down))
-#     
-#     a=lapply(P,generate_ab,P[k])
-#     a[[k]]=diag(P[k])
-#     A[[k]]=do.call("cbind",a)
-#   }
-#   
-#   # Block specific loading matrices W_k
-#   
-#   wji_hat=list()
-#   for(k in 1:K){ # Selecting a sub matrx of the Cholesky Decomp solution L
-#     if(k==1){
-#       L=t(chol(cov(Y[,1:P[k]])))
-#     }else{
-#       L=t(chol(cov(Y[,(sum(P[1:(k-1)])+1):sum(P[1:k])])))
-#     }
-#     wji_hat[[k]]=L[,1:(Q[1]+Q[k+1])]
-#   }
-#   wk_hat=wji_hat
-#   
-#   
-#   
-#   # wji_hat=list()
-#   #     for(k in 1:K){ # Selecting a sub matrx of the Cholesky Decomp solution L
-#   
-#   #         wji_hat[[k]]=matrix(rep(1,P[k]*(Q[1]+Q[k+1])),nrow=P[k],ncol=(Q[1]+Q[k+1]))
-#   
-#   #     }
-#   # wk_hat=wji_hat
-#   
-#   
-#   sig_hat=rep(1,K)                   # Initializationf of sig_hat
-#   
-#   # Total loading matrices W
-#   w_hat=wk_to_w(wk_hat)
-#   
-#   # Total noise matrices D
-#   d_hat=generate_d(sig_hat,P)
-#   
-#   # all_obs.LogLik=append(c(-Inf),obs_LogLik(Y, mu_hat, w_hat, d_hat, pie_hat))
-#   all_obs.LogLik=c(-Inf)
-#   
-#   # Set initial iteration number:
-#   iter=0
-#   
-#   
-#   
-#   while (Max.iter>=iter & eval_converge(all_obs.LogLik) ) 
-#   {
-#     
-#     
-#     
-#     ################## START OF M-STEP######################
-#     
-#     
-#     ## Update mu_hat
-#     mu_hat=list()
-#     
-#     
-#     ## Update mu_hat
-#     Y_star=Y # use Y_star in case we need to implement censoring later
-#     
-#     mu_hat=apply(as.matrix(Y_star),2,sum) / N   
-#     
-#     ## Store some values to save computation time
-#     Yc=sweep(Y, 2, mu_hat)
-#     S=t(Yc)%*%Yc/ N
-#     
-#     Iq=diag(sum(Q))
-#     w=w_hat
-#     
-#     c_solv=solve(Iq+t(w)%*%solve(d_hat)%*%w)
-#     
-#     U=S%*%solve(d_hat)%*%w%*%c_solv
-#     V=c_solv+c_solv%*%t(w)%*%solve(d_hat)%*%S%*%solve(d_hat)%*%w%*%c_solv
-#     
-#     ## Update d_tild
-#     
-#     d_tild=S-2*w%*%t(U)+w%*%V%*%t(w)   
-#     for(k in 1:K){
-#       
-#       ## Update wk_hat 
-#       wk_hat[[k]]=A[[k]]%*%U%*%t(B[[k]])%*%solve(B[[k]]%*%V%*%t(B[[k]]))
-#       
-#       ## Update sigma_hat
-#       sig_hat[k]=mean(diag(A[[k]]%*%diag(diag(d_tild))%*%t(A[[k]])))
-#     }
-#     
-#     
-#     ## Update w_hat 
-#     w_hat=wk_to_w(wk_hat)
-#     
-#     ## Update d_hat 
-#     d_hat=generate_d(sig_hat,P)
-#     
-#     ################## End of M-step######################
-#     
-#     ## Update iter
-#     iter=iter + 1
-#     
-#     all_obs.LogLik=append(all_obs.LogLik,obs_LogLik(Y, mu_hat, w_hat, d_hat))  
-#   }
-#   
-#   #     if(iter<Max.iter & diff<=diff.tol){
-#   if(iter<Max.iter){
-#     converge_=TRUE
-#   }else{
-#     converge_=FALSE
-#   }    
-#   
-#   if(print){
-#     print(paste0("Total Iteration = ",toString(iter)))
-#     print(paste0("Convergence = ",toString(converge_)))
-#     print(paste0("LogLik = ",toString(round(tail(all_obs.LogLik, n=1),3))))
-#     # print(pie_hat)
-#     print(mu_hat)
-#     print(wk_hat)
-#     print(sig_hat)
-#     #     plot(all_obs.LogLik[-1])
-#   }
-#   LogLik=tail(all_obs.LogLik, n=1)
-#   
-#   
-#   OUTPUT=list()
-#   
-#   OUTPUT[[1]]=iter
-#   OUTPUT[[2]]=(iter<Max.iter)
-#   OUTPUT[[3]]=LogLik
-#   OUTPUT[[4]]=mu_hat
-#   OUTPUT[[5]]=wk_hat
-#   OUTPUT[[6]]=sig_hat
-#   OUTPUT[[7]]=all_obs.LogLik
-#   
-#   names(OUTPUT)<-c("Iterations", "Converged", "LogLik", "Mu", "Wk", "Sig", "AllLogLik")
-#   return(OUTPUT)
-# }
-# 
+ProJIVE_EM2=function(Y,P,Q,Max.iter=10000,diff.tol=1e-5,print=TRUE){
+
+  ## Primary Parameters
+  # Y=as.matrix(df[1:6]);G=1;P=c(3,3);Q=c(1,1,1);Max.iter=10000;diff.tol=1e-5
+
+
+
+
+  ########################################################################
+  ####################START OF PRE-DEFINED FUNCS##########################
+  ########################################################################
+  ## FUNC to Generate the corresponding Ak and Bk:
+  generate_ab=function(m,n){
+    return(matrix(rep(0,n*m),nrow=n,ncol=m))
+  }
+
+
+  ## FUNC to generate list(G) of W matrix with right dimension
+  generate_w=function(k){
+    r=lapply(Q,generate_ab,P[k])
+    r[[1]]=as.matrix(wk_hat[[k]][1:P[k],1:Q[1]], nrow=P[k], ncol=Q[1])
+    r[[k+1]]=as.matrix(wk_hat[[k]][1:P[k],Q[1]+1:Q[k+1]], nrow=P[k], ncol=Q[k+1])
+    return(do.call('cbind',r))
+  }
+
+  ## FUNC to generate list(G) of W matrix from W_k matrices
+  wk_to_w=function(wk){
+
+    w=do.call('rbind',lapply(1:K,generate_w))
+
+    return(w)
+  }
+
+  ## FUNC to generate list(G) of D matrix from sigma vectors
+  generate_d=function(sig_lst, p_vec){
+
+    d=list()
+    for(k in 1:K){
+      d[[k]]=rep(sig_lst[k],p_vec[k])
+    }
+    D=diag(unlist(d))
+
+    return(D)
+  }
+
+  obs_LogLik<-function(Y, mu, w, d){
+    ##############################################
+    # input:    -mu    :a G list of d dimension vectors
+    #           -w     :a G list of dxp matrices
+    #           -d     :a G list of d length vector indicating the noise
+    #           -Y     :a nxd data frame as the observations
+    #
+    # output:   a real value of the log likelihood
+    ##############################################
+
+    N=dim(Y)[1]
+
+
+    lik<-rep(0, N)
+
+
+    #         w=cbind(do.call(rbind,wj[[g]]),as.matrix(bdiag(wi[[g]])))
+    s=w%*%t(w)+d
+
+    lik=dmvnorm(Y,mu,s)
+
+
+    LogLik=sum(log(lik))
+
+    return(LogLik)
+  }
+
+  ## FUNC to evaluate convergence in the loop
+  eval_converge=function(vals_vec){
+    if(length(vals_vec)==1) {
+      return(TRUE)
+    }else{
+      if(vals_vec[length(vals_vec)]==-Inf){
+        return(TRUE)
+      }else{
+        return(abs(all_obs.LogLik[length(all_obs.LogLik)]-all_obs.LogLik[length(all_obs.LogLik)-1])>=(N*diff.tol))
+      }
+    }
+  }
+  ########################################################################
+  ####################END OF PRE-DEFINED FUNCS############################
+  ########################################################################
+
+
+
+
+  #p_1=3, p_2=3, q_J=1, q_1=1, q_2=1
+  # P=c(3,3)   # Dimensions of feature blocks:p_1, p_2
+  # Q=c(1,1,1) # Dimensions of scores: q_J, q_1, q_2
+
+
+  # KM=kmeans(Y,G)
+  # KMcenters=t(KM$centers)
+
+  # mu_hat=list(rep(0,6),rep(1,6),rep(2,6))               # Initializationf of mu_hat
+  # mu_hat=split(KMcenters, rep(1:ncol(KMcenters), each = nrow(KMcenters))) # Initializationf of mu_hat
+
+  # pie_hat=rep(1,G)/G                                    # Initializationf of pie_hat
+  # actually no need to initialize pie
+
+
+  ## Secondary Parameters
+
+  # Total sample size
+  N=dim(Y)[1]
+
+  # Total number feature blocks
+  if(length(P)==(length(Q)-1)){
+    K=length(P)
+  } else{
+    stop("Error: The number of feature blocks don not match the number of invididual scores")
+  }
+
+  # Selection matrices A_knd B_k
+  A=list()
+  B=list()
+  for(k in 1:K){
+    up=lapply(Q,generate_ab,Q[1])
+    up[[1]]=diag(Q[1])
+    down=lapply(Q,generate_ab,Q[(k+1)])
+    down[[(k+1)]]=diag(Q[(k+1)])
+    B[[k]]=rbind(do.call("cbind",up),
+                 do.call("cbind",down))
+
+    a=lapply(P,generate_ab,P[k])
+    a[[k]]=diag(P[k])
+    A[[k]]=do.call("cbind",a)
+  }
+
+  # Block specific loading matrices W_k
+
+  wji_hat=list()
+  for(k in 1:K){ # Selecting a sub matrx of the Cholesky Decomp solution L
+    if(k==1){
+      L=t(chol(cov(Y[,1:P[k]])))
+    }else{
+      L=t(chol(cov(Y[,(sum(P[1:(k-1)])+1):sum(P[1:k])])))
+    }
+    wji_hat[[k]]=L[,1:(Q[1]+Q[k+1])]
+  }
+  wk_hat=wji_hat
+
+
+
+  # wji_hat=list()
+  #     for(k in 1:K){ # Selecting a sub matrx of the Cholesky Decomp solution L
+
+  #         wji_hat[[k]]=matrix(rep(1,P[k]*(Q[1]+Q[k+1])),nrow=P[k],ncol=(Q[1]+Q[k+1]))
+
+  #     }
+  # wk_hat=wji_hat
+
+
+  sig_hat=rep(1,K)                   # Initializationf of sig_hat
+
+  # Total loading matrices W
+  w_hat=wk_to_w(wk_hat)
+
+  # Total noise matrices D
+  d_hat=generate_d(sig_hat,P)
+
+  # all_obs.LogLik=append(c(-Inf),obs_LogLik(Y, mu_hat, w_hat, d_hat, pie_hat))
+  all_obs.LogLik=c(-Inf)
+
+  # Set initial iteration number:
+  iter=0
+
+
+
+  while (Max.iter>=iter & eval_converge(all_obs.LogLik) )
+  {
+
+
+
+    ################## START OF M-STEP######################
+
+
+    ## Update mu_hat
+    mu_hat=list()
+
+
+    ## Update mu_hat
+    Y_star=Y # use Y_star in case we need to implement censoring later
+
+    mu_hat=apply(as.matrix(Y_star),2,sum) / N
+
+    ## Store some values to save computation time
+    Yc=sweep(Y, 2, mu_hat)
+    S=t(Yc)%*%Yc/ N
+
+    Iq=diag(sum(Q))
+    w=w_hat
+
+    c_solv=solve(Iq+t(w)%*%solve(d_hat)%*%w)
+
+    U=S%*%solve(d_hat)%*%w%*%c_solv
+    V=c_solv+c_solv%*%t(w)%*%solve(d_hat)%*%S%*%solve(d_hat)%*%w%*%c_solv
+
+    ## Update d_tild
+
+    d_tild=S-2*w%*%t(U)+w%*%V%*%t(w)
+    for(k in 1:K){
+
+      ## Update wk_hat
+      wk_hat[[k]]=A[[k]]%*%U%*%t(B[[k]])%*%solve(B[[k]]%*%V%*%t(B[[k]]))
+
+      ## Update sigma_hat
+      sig_hat[k]=mean(diag(A[[k]]%*%diag(diag(d_tild))%*%t(A[[k]])))
+    }
+
+
+    ## Update w_hat
+    w_hat=wk_to_w(wk_hat)
+
+    ## Update d_hat
+    d_hat=generate_d(sig_hat,P)
+
+    ################## End of M-step######################
+
+    ## Update iter
+    iter=iter + 1
+
+    all_obs.LogLik=append(all_obs.LogLik,obs_LogLik(Y, mu_hat, w_hat, d_hat))
+  }
+
+  #     if(iter<Max.iter & diff<=diff.tol){
+  if(iter<Max.iter){
+    converge_=TRUE
+  }else{
+    converge_=FALSE
+  }
+
+  if(print){
+    print(paste0("Total Iteration = ",toString(iter)))
+    print(paste0("Convergence = ",toString(converge_)))
+    print(paste0("LogLik = ",toString(round(tail(all_obs.LogLik, n=1),3))))
+    # print(pie_hat)
+    print(mu_hat)
+    print(wk_hat)
+    print(sig_hat)
+    #     plot(all_obs.LogLik[-1])
+  }
+  LogLik=tail(all_obs.LogLik, n=1)
+
+
+  OUTPUT=list()
+
+  OUTPUT[[1]]=iter
+  OUTPUT[[2]]=(iter<Max.iter)
+  OUTPUT[[3]]=LogLik
+  OUTPUT[[4]]=mu_hat
+  OUTPUT[[5]]=wk_hat
+  OUTPUT[[6]]=sig_hat
+  OUTPUT[[7]]=all_obs.LogLik
+
+  names(OUTPUT)<-c("Iterations", "Converged", "LogLik", "Mu", "Wk", "Sig", "AllLogLik")
+  return(OUTPUT)
+}
+
 ##################################################################
 ###########           Sum of Eigenvalues         #################
 ##################################################################
 MatVar = function(X){
   sum(diag(X%*%t(X)))
+}
+
+##################################################################
+###########       Relative Squared Error         #################
+##################################################################
+RSE = function(X.true, X.est){
+  MatVar(X.true - X.est)/MatVar(X.true)
 }

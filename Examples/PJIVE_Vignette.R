@@ -4,30 +4,43 @@
 ### Author: Raphiel J. Murden                                                               #################################
 ### Supervised by Benjamin Risk                                                             #################################
 #############################################################################################################################
-# NOTE: Change the location of 'prog.dir' to the location where you have saved the file 'Functions_to_SimulateData.R'
+#########################             NOTES:          ##########################
+###       Change the location of 'prog.dir' to the location where you have saved the file 'Functions_to_SimulateData.R'
+# 21JUN22024: A run of this vignette seems togive similar results fro simulations
+#             conducted between 07 JUN 2024 and 17 JUN 20204.These results are not
+#             as good as previous iterations of this vignette. May try to modify 
+#             simulation settings to achieve better results
+# 24JUN22024: Simulations that use a mixture of Gaussian distributions for the  
+#             scores violate the independence assumption across components of the 
+#             joint score subspace. However, using binomial scores, which retain 
+#             independence, does not seem to improve results
+
 prog.dir = "C:/Users/rmurden/OneDrive - Emory University/Documents/GitHub/ProJIVE"
 prog.gipca.dir = "H:/My Documents/ProJIVE/Programs/GeneralizedIntegrativePCA-master/Functions"
-source(file.path(prog.dir, "Functions_for_PJIVE.R"))
-library(singR); library(CJIVE); library(reticulate); library(cowplot)
+prog.mix.dir = "H:/My Documents/ProJIVE/Programs/ProJIVE_Gavin"
 prog.dcca.dir = "H:/My Documents/ProJIVE/Programs/D-CCA"
+doc.dir = "H:/My Documents/P-JIVE/Programs/Examples/Output"
+
+source(file.path(prog.dir, "Functions_for_PJIVE.R"))
+source(file.path(prog.mix.dir, "MixProJIVE_EM.R"))
+library(singR); library(CJIVE); library(reticulate); library(cowplot); library(r.jive)
 source_python(file.path(prog.dcca.dir, "dcca_given.py"))
 gipca.files = list.files(prog.gipca.dir,full.names = TRUE)
 for(file.nm in gipca.files){source(file.nm)}
-doc.dir = "H:/My Documents/P-JIVE/Programs/Examples/Output"
-diffr("C:/Users/rmurden/OneDrive - Emory University/Documents/GitHub/ProJIVE/Functions/ProJIVE_Gavin.R",
-            "C:/Users/rmurden/OneDrive - Emory University/Documents/GitHub/ProJIVE/Functions/ProJIVE_RJM.R")
+# diffr("C:/Users/rmurden/OneDrive - Emory University/Documents/GitHub/ProJIVE/Functions/ProJIVE_Gavin.R",
+#             "C:/Users/rmurden/OneDrive - Emory University/Documents/GitHub/ProJIVE/Functions/ProJIVE_RJM.R")
 
 ##Simulation parameters
 rep_number = 1
-r.J = 1
+r.J = 3
 r.I1 = 2
 r.I2 = 2
 #outdir = args[2]
-n = 500
-p1 = 100
-p2 = 20 ####Note that p1 and p2 differ when compared to values used in simulations
-JntVarEx1 = 0.05
-JntVarEx2 = 0.05
+n = 1000
+p1 = 20
+p2 = 200 ####Note that p1 and p2 differ when compared to values used in simulations
+JntVarEx1 = 0.1
+JntVarEx2 = 0.1
 #files = list.files(outdir)
 IndVarEx1 = 0.25
 IndVarEx2 = 0.25
@@ -37,16 +50,23 @@ prop = n/nparams
 #######################################################################
 set.seed(rep_number) ##To ensure that any randomized processes give the same results each time
 
+JntScores = matrix(rdunif(n*r.J, 0, 5), nrow = n, ncol = r.J)
+IndivScore.X = matrix(rweibull(n*r.I1, shape = 1), nrow = n)
+IndivScore.Y = matrix(rhnorm(n*r.I2), nrow = n)
+Scores = cbind(JntScores, IndivScore.X, IndivScore.Y)
+  
 ###Construct Datasets
 true_signal_ranks = r.J + c(r.I1,r.I2)                          ##true ranks of overall signals
-ToyDat = GenerateToyData(n = n, p = c(p1, p2), JntVarEx = c(JntVarEx1, JntVarEx2),
-                         equal.eig = TRUE, IndVarEx = c(IndVarEx1, IndVarEx2),
-                         jnt_rank = r.J, ind_ranks = c(r.I1, r.I2), JntVarAdj = T, 
-                         SVD.plots = F, Error = T, print.cor = F, Loads = "Rademacher",
-                         Scores = "Gaussian", error.variances = c(1,1))
+ToyDat = GenerateToyData(n = n, p = c(p1, p2), JntVarEx = c(JntVarEx1, JntVarEx2), #mix.probs = c(.5,.5),
+                         equal.eig = F, IndVarEx = c(IndVarEx1, IndVarEx2),
+                         jnt_rank = r.J, ind_ranks = c(r.I1, r.I2), JntVarAdj = F, 
+                         SVD.plots = F, Error = T, print.cor = TRUE, Loads = "Rademacher",
+                         Scores = "Gaussian_Mixture", error.variances = c(1,1))
+
 ## Proportions of groups for mixture
 mix.probs = c(0.2, 0.5, 0.3)
-diagnoses = factor(c(rep(1, each = n*mix.probs[1]),rep(2, each = n*mix.probs[2]),rep(3, each = n*mix.probs[3])))
+diagnoses = factor(c(rep(1, each = n*mix.probs[1]),rep(2, each = n*mix.probs[2]),
+                     rep(3, each = n*mix.probs[3])))
 blocks <- ToyDat[["Data Blocks"]]
 ##Setup input parameters to use Gavin's EM code
 Y = do.call(cbind, blocks)
@@ -92,6 +112,11 @@ IVE.Y = MatVar(IY)/MatVar(blocks[[2]])
 TotVE.X = MatVar((JX + IX))/MatVar(blocks[[1]])
 TotVE.Y = MatVar((JY + IY))/MatVar(blocks[[2]])
 
+Jnt.all = cbind(JX, JY)
+Indiv.all = cbind(IX, IY)
+s2n = var(c(Jnt.all+Indiv.all))/var(c(cbind(EX,EY)))
+
+
 ##Looks like the variances are about equal to me ( +/- 10%)?
 # plot(apply((blocks[[1]] - AX), 2, sd))
 # plot(apply((blocks[[2]] - AY), 2, sd))
@@ -128,8 +153,20 @@ example.data = list(Y, P, Q)
 WJ.init = list(JntLd.X, JntLd.Y)
 WI.init = list(IndivLd.X, IndivLd.Y)
 init.loads = list(WJ.init, WI.init)
-PJIVE.res.RJM = ProJIVE_EM(Y=Y, P=P, Q=Q, init.loads = NULL, sig_hat = c(1,1),diff.tol = 1e-10, 
-                       plots = TRUE)#, Max.iter = -1)
+PJIVE.res.RJM.all = ProJIVE(Y=Y, P=P, Q=Q, Max.iter = 1000, init.loads = init.loads, num.starts = 5,
+                           sig_hat = c(1,1), diff.tol = 1e-14, return.all.starts = TRUE,
+                           plots = TRUE)
+plot(PJIVE.res.RJM.all$ObservedDataLogLikelihood)
+PJIVE.res.RJM = PJIVE.res.RJM.all$ProJIVE_Results[[2]]
+
+PJIVE.Jnt.all = PJIVE.res.RJM$SubjectScoreMatrix[,1:r.J]%*%t(PJIVE.res.RJM$LoadingMatrix[,1:r.J])
+PJIVE.Indiv.all = PJIVE.res.RJM$SubjectScoreMatrix[,-(1:r.J)]%*%t(PJIVE.res.RJM$LoadingMatrix[,-(1:r.J)])
+
+RSE.Jnt = norm(Jnt.all - PJIVE.Jnt.all, type = "F")^2/norm(Jnt.all, type = "F")^2
+RSE.Jnt - MatVar(Jnt.all - PJIVE.Jnt.all)/MatVar(Jnt.all)
+
+RSE.Indiv = norm(Indiv.all - PJIVE.Indiv.all, type = "F")^2/norm(Indiv.all, type = "F")^2
+RSE.Indiv - MatVar(Indiv.all - PJIVE.Indiv.all)/MatVar(Indiv.all)
 
 PJIVE.scores.unscaled = PJIVE.res.RJM$SubjectScoreMatrix
 score.SDs = apply(PJIVE.scores.unscaled, 2, sd)
@@ -304,7 +341,11 @@ prop.table(table(c(true.load.dat.X$Loading, true.load.dat.Y$Loading) <= c(load.d
 
 #########################################################################################################
 ############       ProJIVE2 (Gavin's)        ###########
+# 
 PJIVE.res = ProJIVE_EM2(Y=Y, P=P, Q=Q, diff.tol = 1e-10)
+  
+chord.norm.diff(PJIVE.res.RJM$LoadingMatrix[1:P[1],1:Q[1]], PJIVE.res$Wk[[1]][,1:Q[1]])
+
 plot(sort(PJIVE.res.RJM$LoadingMatrix[1:P[1],1:Q[1]]) - sort(PJIVE.res$Wk[[1]][,1:Q[1]]))
 plot(sort(PJIVE.res.RJM$LoadingMatrix[-(1:P[1]),1:Q[1]]) - sort(PJIVE.res$Wk[[2]][,1:Q[1]]))
 
@@ -313,7 +354,9 @@ plot(sort(PJIVE.res.RJM$LoadingMatrix[-(1:P[1]),1:Q[1]]) - sort(PJIVE.res$Wk[[2]
 PJIVE.loads.X = PJIVE.res$Wk[[1]]
 PJIVE.loads.Y = PJIVE.res$Wk[[2]]
 PJIVE.err.var = PJIVE.res$Sig
-w_hat = wk_to_w(wk = PJIVE.res$Wk, P = P, Q = Q)
+w_hat = rbind(cbind(PJIVE.loads.X, matrix(0, nrow = p1, ncol = r.I2)),
+              cbind(PJIVE.loads.Y[,1:r.J], matrix(0, nrow = p2, ncol = r.I1), PJIVE.loads.Y[,-c(1:r.J)]))
+
 d_hat = diag(rep(PJIVE.err.var, P))
 
 Ip=diag(sum(P))
@@ -461,7 +504,8 @@ layout(1)
 
 #############################################
 ############### ProJIVE  ####################
-PJIVE.res = ProJIVE_EM(Y=Y, P=P, Q=Q, plots = TRUE, chord.tol = 1e-10, diff.tol = 1e-10, init.loads = "CJIVE")
+PJIVE.res = ProJIVE_EM(Y=Y, P=P, Q=Q, plots = TRUE, chord.tol = 1e-10,
+                       diff.tol = 1e-10, init.loads = "CJIVE", sig_hat = "MLE")
 
 PJIVE.scores = PJIVE.res$SubjectScoreMatrix
 PJIVE.loads.X = PJIVE.res$LoadingMatrix[1:p1,-(sum(Q):(sum(Q[-3])+1))]
@@ -503,7 +547,7 @@ layout(1)
 
 #############################################################
 #####    ProJIVE with sigma_hat[k] from pPCA MLE   ##########
-PJIVE.res = ProJIVE_EM(Y=Y, P=P, Q=Q, diff.tol=1e-5, sig_hat = "MLE", plots = TRUE)
+PJIVE.res = ProJIVE_EM(Y=Y, P=P, Q=Q, diff.tol=1e-14, sig_hat = "MLE", plots = TRUE)
 
 PJIVE.scores = PJIVE.res$SubjectScoreMatrix
 PJIVE.loads.X = PJIVE.res$LoadingMatrix[1:p1,-(sum(Q):(sum(Q[-3])+1))]
@@ -772,6 +816,7 @@ show.image.2(pnorm(abs(PJIVE.loads.Y/PJIVE.err.var[1]*n), lower.tail = FALSE)<0.
 #######################################
 ##############  CJIVE   ###############
 CJIVE.res = cc.jive(blocks, true_signal_ranks, r.J, perm.test = FALSE)
+CJIVE.res$CanCorRes$Jnt_Rank
 
 # CJIVE loading estimates
 CJIVE.scores = cbind(CJIVE.res$CanCorRes$Jnt_Scores, CJIVE.res$sJIVE$indiv_matrices[[1]]$u, CJIVE.res$sJIVE$indiv_matrices[[2]]$u)

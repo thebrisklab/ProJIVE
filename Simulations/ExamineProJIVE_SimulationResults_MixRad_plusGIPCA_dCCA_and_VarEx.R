@@ -12,10 +12,9 @@ require(tidyr); require(arsenal); require(dplyr); require(stringr); require(grid
 # imgs.fldr_n500_rJ3 = results.dir_n500_rJ3
 
 results.dir_n1000_rJ1 = "H:/My Documents/ProJIVE/Results/Simulation_Results/rJ1_MR_plus_dCCA"
-results.dir_n1000_rJ3 = "H:/My Documents/ProJIVE/Results/Simulation_Results/rJ3_MR_plus_dCCA/"
+results.dir_n1000_rJ3 = "H:/My Documents/ProJIVE/Results/Simulation_Results/rJ3_MR_plus_dCCA"
 imgs.fldr_n1000_rJ1 = results.dir_n1000_rJ1
 imgs.fldr_n1000_rJ3 = results.dir_n1000_rJ3
-
 
 prog.dir = "H:/My Documents/ProJIVE/Programs/Functions"
 source(file.path(prog.dir, "Functions_for_PJIVE.R"))
@@ -425,7 +424,7 @@ plot_grid(plot_grid(norm.plot.20 , norm.plot.200, ncol = 1, align = 'v', labels 
 dev.off()
 
 MR.Time.Table = rbind(Time.Table_rJ1, Time.Table_rJ3)[,c(5:1,6:9)]
-write.csv(MR.Time.Table, file = "H:/My Documents/ProJIVE/Results/Simulation_Results/rJ3_MR_plus_dCCA/MR_Time_Table.csv", row.names = FALSE)
+write.csv(MR.Time.Table, file = "H:/My Documents/ProJIVE/Results/Simulation_Results/MR_Time_Table.csv", row.names = FALSE)
 
 # ########################################################################################################################
 # ########################################################################################################################

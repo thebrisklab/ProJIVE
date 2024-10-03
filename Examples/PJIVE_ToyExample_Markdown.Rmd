@@ -20,14 +20,14 @@ Input parameters for generating data include the following quantities: $n$ - num
 
 ```{r, echo = TRUE}
 # Sample size
-n = 500
+n = 1000
 
 # Number of features per block (input as a vector)
-p1 = 750
-p2 = 250 
+p1 = 20
+p2 = 200 
 
 # Joint Rank 
-r.J = 1
+r.J = 3
 
 # Individual rank for each block (input as a vector)
 r.I1 = 2

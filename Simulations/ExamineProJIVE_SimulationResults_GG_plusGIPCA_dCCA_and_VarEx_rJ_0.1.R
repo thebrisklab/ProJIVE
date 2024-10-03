@@ -44,25 +44,25 @@ sim.results.0505 = GetSimResults_Dir(file.path(results.dir_n1000_rJ1, "SimBin_P1
 ##############################################################################################################################
 #############################Simulation Results for Joint Variance Explained = 0.05 in data set 1 and 0.5 in dataset 2 #######
 ##############################################################################################################################
-sim.results.00505 = GetSimResults_Dir(file.path(results.dir_n1000_rJ1,"SimBin_P120_P220.005.05"), 20, 20)
+sim.results.0105 = GetSimResults_Dir(file.path(results.dir_n1000_rJ1,"SimBin_P120_P220.01.05"), 20, 20)
 
 ##############################################################################################################################
 #############################Simulation Results for Joint Variance Explained = 0.05 in both data sets                  #######
 ##############################################################################################################################
-sim.results.05005 = GetSimResults_Dir(file.path(results.dir_n1000_rJ1,"SimBin_P120_P220.05.005"), 20, 20)
+sim.results.0501 = GetSimResults_Dir(file.path(results.dir_n1000_rJ1,"SimBin_P120_P220.05.01"), 20, 20)
 
 ####################################################################################################################
 #############################Simulation Results for Joint Variance Explained = 0.05 in both data sets (Total R^2 = 0.75)
 ####################################################################################################################
-sim.results.005005 = GetSimResults_Dir(file.path(results.dir_n1000_rJ1,"SimBin_P120_P220.005.005"), 20, 20)
+sim.results.0101 = GetSimResults_Dir(file.path(results.dir_n1000_rJ1,"SimBin_P120_P220.01.01"), 20, 20)
 
 ##############################################################################################################################
 #############################Make Plots and Images    ########################################################################
 ##############################################################################################################################
-AllSims = cbind(sim.results.005005, sim.results.05005, sim.results.00505, sim.results.0505)
+AllSims = cbind(sim.results.0101, sim.results.0501, sim.results.0105, sim.results.0505)
 AllSims[,"Indiv.Var.Exp.X"] = 0.25
 AllSims[,"Indiv.Var.Exp.Y"] = 0.25
-AllSims.rows = rbind(sim.results.005005, sim.results.05005, sim.results.00505, sim.results.0505)
+AllSims.rows = rbind(sim.results.0101, sim.results.0501, sim.results.0105, sim.results.0505)
 
 AllSims.rows[,"n"] = 1000; AllSims.rows[,"r.J"] = 1;
 Time.Table_p220_n1000_rJ1 =
@@ -72,16 +72,22 @@ Time.Table_p220_n1000_rJ1 =
             FUN = function(x) paste0(round(mean(x/60),1), " (", round(sd(x/60),3), ")"))
 
 sim.20.gg= ConvSims_gg_ProJIVE2(AllSims, 1000)
-sim.gg.data = sim.20.gg$Norms
+sim.20.gg$Norms$Method2 = sim.20.gg$Norms$Method
+sim.20.gg$Norms$Method = factor(sim.20.gg$Norms$Method2,
+                                levels = levels(sim.20.gg$Norms$Method),
+                                labels = c(levels(sim.20.gg$Norms$Method)[1:5], "D-CCA"))
+table(sim.20.gg$Norms$Method, sim.20.gg$Norms$Method2)
+sim.gg.data = sim.20.gg$Norms[-grep("Oracle", sim.20.gg$Norms$Method),]
+
 sim.scores = sim.gg.data[grep("Score", sim.gg.data[,"Type"]),]
 sim.loads = sim.gg.data[grep("Loadings", sim.gg.data[,"Type"]),]
 
-norm.plot.20 = gg.norm.plot.2(sim.gg.data, cbPalette[2:7], text.size = 15)
-pmse.plot.20 = gg.pmse.plot(sim.20.gg$PMSEs, cbPalette[2:7], text.size = 9, lty = 1.5, show.legend = TRUE, y.max = 1.5)
+norm.plot.20 = gg.norm.plot.2(sim.gg.data, cbPalette[7:2], text.size = 9)
+pmse.plot.20 = gg.pmse.plot(sim.20.gg$PMSEs, cbPalette[7:2], text.size = 9, lty = 1.5, show.legend = TRUE, y.max = 1.5)
 
 plot.name = paste("GG_SimBin_n1000_rJ1_P120_P220_ScoreAndLoadNormPlots_wLegend", Sys.Date(), ".pdf", sep = "")
 pdf(file = file.path(imgs.fldr_n1000_rJ1, plot.name))
-gg.norm.plot.2(sim.gg.data, cbPalette[2:7], text.size = 15, show.legend = TRUE)
+gg.norm.plot.2(sim.gg.data, cbPalette[1:6], text.size = 15, show.legend = TRUE)
 dev.off()
 
 plot.name = paste("GG_SimBin_n1000_rJ1_P120_P220_ScoreAndLoadPMSEPlots", Sys.Date(), ".pdf", sep = "")
@@ -89,8 +95,8 @@ pdf(file = file.path(imgs.fldr_n1000_rJ1, plot.name))
 print(pmse.plot.20)
 dev.off()
 
-# score.plot.20 = gg.score.norm.plot(sim.scores, cbPalette[2:7], text.size = 15, show.legend = TRUE)
-# load.plot.20 = gg.load.norm.plot(sim.loads, cbPalette[2:7], text.size = 15, show.legend = TRUE)
+# score.plot.20 = gg.score.norm.plot(sim.scores, cbPalette[7:2], text.size = 15, show.legend = TRUE)
+# load.plot.20 = gg.load.norm.plot(sim.loads, cbPalette[7:2], text.size = 15, show.legend = TRUE)
 # 
 # plot.name = paste("GG_SimBin_n1000_rJ1_P120_P220_ScoreAndLoadNormPlots", Sys.Date(), ".pdf", sep = "")
 # pdf(file = file.path(imgs.fldr_n1000_rJ1, plot.name))
@@ -107,21 +113,21 @@ dev.off()
 # print(load.plot.20)
 # dev.off()
 
-VarEx.dat.gg = MakeVarEx.data.gg(AllSims.rows, 20, 20, 1000)
-x.labs = c(expression("Joint"*"X"[1]), expression("Joint"*"X"[2]),
-           expression("Indiv"*"X"[1]), expression("Indiv"*"X"[2]))
-
-VarEx.plot.20 = ggplot(data = VarEx.dat.gg, aes(y = Mean_EmpJntVarEx, x = Type, fill = Method)) + 
-  geom_bar(position = "dodge", stat = "identity") + ylab("Mean Variance Explained") +  
-  scale_fill_manual(name = "JIVE Method", values = cb.cols.vx) +
-  scale_x_discrete(labels = x.labs) + 
-  facet_grid(JntVarEx1.fac~JntVarEx2.fac, scales = "free", labeller = label_parsed) + 
-  theme_bw() + 
-  theme(axis.title.x = element_blank(), axis.text.x = element_text(hjust = 01, angle = 70, size = 9),
-        text = element_text(size = 11)) + 
-  geom_errorbar(aes(ymin=Mean_EmpJntVarEx-SD_EmpJntVarEx, ymax=Mean_EmpJntVarEx+SD_EmpJntVarEx), position=position_dodge(), linewidth = 0.25)  
-ggsave(filename = file.path(imgs.fldr_n1000_rJ1, paste0("GG_VarEx_n1000_rJ1_p2_20_", lubridate::today(), ".pdf")), plot = VarEx.plot.20,
-       width = 5, height = 4, units = "in")
+# VarEx.dat.gg = MakeVarEx.data.gg(AllSims.rows, 20, 20, 1000)
+# x.labs = c(expression("Joint"*"X"[1]), expression("Joint"*"X"[2]),
+#            expression("Indiv"*"X"[1]), expression("Indiv"*"X"[2]))
+# 
+# VarEx.plot.20 = ggplot(data = VarEx.dat.gg, aes(y = Mean_EmpJntVarEx, x = Type, fill = Method)) + 
+#   geom_bar(position = "dodge", stat = "identity") + ylab("Mean Variance Explained") +  
+#   scale_fill_manual(name = "JIVE Method", values = cb.cols.vx) +
+#   scale_x_discrete(labels = x.labs) + 
+#   facet_grid(JntVarEx1.fac~JntVarEx2.fac, scales = "free", labeller = label_parsed) + 
+#   theme_bw() + 
+#   theme(axis.title.x = element_blank(), axis.text.x = element_text(hjust = 01, angle = 70, size = 9),
+#         text = element_text(size = 11)) + 
+#   geom_errorbar(aes(ymin=Mean_EmpJntVarEx-SD_EmpJntVarEx, ymax=Mean_EmpJntVarEx+SD_EmpJntVarEx), position=position_dodge(), linewidth = 0.25)  
+# ggsave(filename = file.path(imgs.fldr_n1000_rJ1, paste0("GG_VarEx_n1000_rJ1_p2_20_", lubridate::today(), ".pdf")), plot = VarEx.plot.20,
+#        width = 5, height = 4, units = "in")
 
 ########################################################################################################################
 ########################################################################################################################
@@ -135,25 +141,25 @@ sim.results.0505 = GetSimResults_Dir(file.path(results.dir_n1000_rJ1, "SimBin_P1
 ##############################################################################################################################
 #############################Simulation Results for Joint Variance Explained = 0.05 in data set 1 and 0.5 in dataset 2 #######
 ##############################################################################################################################
-sim.results.00505 = GetSimResults_Dir(file.path(results.dir_n1000_rJ1,"SimBin_P120_P2200.005.05"), 20, 200)
+sim.results.0105 = GetSimResults_Dir(file.path(results.dir_n1000_rJ1,"SimBin_P120_P2200.01.05"), 20, 200)
 
 ##############################################################################################################################
 #############################Simulation Results for Joint Variance Explained = 0.05 in both data sets                  #######
 ##############################################################################################################################
-sim.results.05005 = GetSimResults_Dir(file.path(results.dir_n1000_rJ1,"SimBin_P120_P2200.05.005"), 20, 200)
+sim.results.0501 = GetSimResults_Dir(file.path(results.dir_n1000_rJ1,"SimBin_P120_P2200.05.01"), 20, 200)
 
 ####################################################################################################################
 #############################Simulation Results for Joint Variance Explained = 0.05 in both data sets (Total R^2 = 0.75)
 ####################################################################################################################
-sim.results.005005 = GetSimResults_Dir(file.path(results.dir_n1000_rJ1,"SimBin_P120_P2200.005.005"), 20, 200)
+sim.results.0101 = GetSimResults_Dir(file.path(results.dir_n1000_rJ1,"SimBin_P120_P2200.01.01"), 20, 200)
 
 ##############################################################################################################################
 #############################Make Plots and Images    ########################################################################
 ##############################################################################################################################
-AllSims = cbind(sim.results.005005, sim.results.05005, sim.results.00505, sim.results.0505)
+AllSims = cbind(sim.results.0101, sim.results.0501, sim.results.0105, sim.results.0505)
 AllSims[,"Indiv.Var.Exp.X"] = 0.25
 AllSims[,"Indiv.Var.Exp.Y"] = 0.25
-AllSims.rows = rbind(sim.results.005005, sim.results.05005, sim.results.00505, sim.results.0505)
+AllSims.rows = rbind(sim.results.0101, sim.results.0501, sim.results.0105, sim.results.0505)
 
 AllSims.rows[,"n"] = 1000; AllSims.rows[,"r.J"] = 1;
 Time.Table_p2200_n1000_rJ1 =
@@ -167,26 +173,44 @@ Time.Table_n1000_rJ1 = rbind(Time.Table_p220_n1000_rJ1, Time.Table_p2200_n1000_r
 Time.Table_rJ1 = Time.Table_n1000_rJ1
 
 sim.200.gg = ConvSims_gg_ProJIVE2(AllSims, 1000)
-sim.gg.data = sim.200.gg$Norms
+sim.200.gg$Norms$Method2 = sim.200.gg$Norms$Method
+sim.200.gg$Norms$Method = factor(sim.200.gg$Norms$Method2,
+                                levels = levels(sim.200.gg$Norms$Method),
+                                labels = c(levels(sim.200.gg$Norms$Method)[1:5], "D-CCA"))
+sim.gg.data = sim.200.gg$Norms[-grep("Oracle", sim.200.gg$Norms$Method),]
 sim.scores = sim.gg.data[grep("Score", sim.gg.data[,"Type"]),]
 sim.loads = sim.gg.data[grep("Loadings", sim.gg.data[,"Type"]),]
 
-norm.plot.200 = gg.norm.plot.2(sim.gg.data, cbPalette[2:7], text.size = 15)
+norm.plot.200.legend = gg.norm.plot.2(sim.gg.data, cbPalette[7:2], text.size = 9, show.legend = TRUE)
+legend = get_plot_component(norm.plot.200.legend +
+                               theme(text = element_text(size = 7)) +
+                               guides(fill=guide_legend(nrow=1)), 'guide-box-bottom', return_all = TRUE)
 
-pmse.plot.200 = gg.pmse.plot(sim.200.gg$PMSEs, cbPalette[2:7], text.size = 9, lty = 1.5, show.legend = TRUE, y.max = 1.5)
+pmse.plot.200.legend = gg.pmse.plot(sim.200.gg$PMSEs, cbPalette[7:2], text.size = 9, lty = 1.5, show.legend = TRUE, y.max = 1.5)
+
 
 plot.name = paste("GG_SimBin_n1000_rJ1_P120_P2200_ScoreAndLoadNormPlots_wLegend", Sys.Date(), ".pdf", sep = "")
 pdf(file = file.path(imgs.fldr_n1000_rJ1, plot.name))
-gg.norm.plot.2(sim.gg.data, cbPalette[2:7], text.size = 15, show.legend = TRUE)
+gg.norm.plot.2(sim.gg.data, cbPalette[7:2], text.size = 9, show.legend = TRUE)
 dev.off()
 
 plot.name = paste("GG_SimBin_n1000_rJ1_P120_P2200_ScoreAndLoadPMSEPlots_wLegend", Sys.Date(), ".pdf", sep = "")
 pdf(file = file.path(imgs.fldr_n1000_rJ1, plot.name))
-print(pmse.plot.200)
+print(pmse.plot.200.legend)
 dev.off()
 
-# score.plot.200 = gg.score.norm.plot(sim.scores, cbPalette[2:7], text.size = 15, show.legend = TRUE)
-# load.plot.200 = gg.load.norm.plot(sim.loads, cbPalette[2:7], text.size = 15, show.legend = TRUE)
+pdf(file = file.path(results.dir_n1000_rJ1, paste0("GG_rJ1_ScoreAndLoading_NormPlots_", today(), ".pdf")), width = 5.5, height = 6)
+plot_grid(plot_grid(norm.plot.20, norm.plot.200.legend + theme(legend.position = "none"),
+                    ncol = 1, align = 'v', labels = "AUTO"), legend, ncol = 1, rel_heights = c(5.25, 0.75))
+dev.off()
+
+pdf(file = file.path(results.dir_n1000_rJ1, paste0("GG_rJ1_ScoreAndLoading_PMSEPlots_", today(), ".pdf")), width = 5.5, height = 6)
+plot_grid(plot_grid(pmse.plot.20 + theme(legend.position = "none"), pmse.plot.200.legend + theme(legend.position = "none"),
+                    ncol = 1, align = 'v', labels = "AUTO"), legend, ncol = 1, rel_heights = c(5.25, 0.75))
+dev.off()
+
+# score.plot.200 = gg.score.norm.plot(sim.scores, cbPalette[7:2], text.size = 15, show.legend = TRUE)
+# load.plot.200 = gg.load.norm.plot(sim.loads, cbPalette[7:2], text.size = 15, show.legend = TRUE)
 # 
 # plot.name = paste("GG_SimBin_n1000_rJ1_P120_P2200_ScoreAndLoadNormPlots", Sys.Date(), ".pdf", sep = "")
 # pdf(file = file.path(imgs.fldr_n1000_rJ1, plot.name))
@@ -203,21 +227,21 @@ dev.off()
 # print(load.plot.200)
 # dev.off()
 
-VarEx.dat.gg.200 = MakeVarEx.data.gg(AllSims.rows, 20, 200, 1000)
-x.labs = c(expression("Joint"*"X"[1]), expression("Joint"*"X"[2]),
-           expression("Indiv"*"X"[1]), expression("Indiv"*"X"[2]))
-
-VarEx.plot.200 = ggplot(data = VarEx.dat.gg.200, aes(y = Mean_EmpJntVarEx, x = Type, fill = Method)) + 
-  geom_bar(position = "dodge", stat = "identity") + ylab("Mean Variance Explained") +  
-  scale_fill_manual(name = "JIVE Method", values = cbPalette[c(1:5,7)]) +
-  scale_x_discrete(labels = x.labs) + 
-  facet_grid(JntVarEx1.fac~JntVarEx2.fac, scales = "free", labeller = label_parsed) + 
-  theme_bw() + 
-  theme(axis.title.x = element_blank(), axis.text.x = element_text(hjust = 01, angle = 70, size = 9),
-        text = element_text(size = 11)) + 
-  geom_errorbar(aes(ymin=Mean_EmpJntVarEx-SD_EmpJntVarEx, ymax=Mean_EmpJntVarEx+SD_EmpJntVarEx), position=position_dodge(), linewidth = 0.25)  
-ggsave(file.path(imgs.fldr_n1000_rJ1, paste0("GG_VarEx_n1000_rJ1_p2_200_", lubridate::today(), ".pdf")),
-       width = 5, height = 4, units = "in")
+# VarEx.dat.gg.200 = MakeVarEx.data.gg(AllSims.rows, 20, 200, 1000)
+# x.labs = c(expression("Joint"*"X"[1]), expression("Joint"*"X"[2]),
+#            expression("Indiv"*"X"[1]), expression("Indiv"*"X"[2]))
+# 
+# VarEx.plot.200 = ggplot(data = VarEx.dat.gg.200, aes(y = Mean_EmpJntVarEx, x = Type, fill = Method)) + 
+#   geom_bar(position = "dodge", stat = "identity") + ylab("Mean Variance Explained") +  
+#   scale_fill_manual(name = "JIVE Method", values = cbPalette[c(1:5,7)]) +
+#   scale_x_discrete(labels = x.labs) + 
+#   facet_grid(JntVarEx1.fac~JntVarEx2.fac, scales = "free", labeller = label_parsed) + 
+#   theme_bw() + 
+#   theme(axis.title.x = element_blank(), axis.text.x = element_text(hjust = 01, angle = 70, size = 9),
+#         text = element_text(size = 11)) + 
+#   geom_errorbar(aes(ymin=Mean_EmpJntVarEx-SD_EmpJntVarEx, ymax=Mean_EmpJntVarEx+SD_EmpJntVarEx), position=position_dodge(), linewidth = 0.25)  
+# ggsave(file.path(imgs.fldr_n1000_rJ1, paste0("GG_VarEx_n1000_rJ1_p2_200_", lubridate::today(), ".pdf")),
+#        width = 5, height = 4, units = "in")
 
 ########################################################################################################################
 ########################################################################################################################
@@ -237,41 +261,45 @@ sim.20.results.0505 = GetSimResults_Dir(file.path(results.dir_n1000_rJ3, "SimBin
 ##############################################################################################################################
 #############################Simulation Results for Joint Variance Explained = 0.05 in data set 1 and 0.5 in dataset 2 #######
 ##############################################################################################################################
-sim.20.results.00505 = GetSimResults_Dir(file.path(results.dir_n1000_rJ3,"SimBin_P120_P220.005.05"), 20, 20)
+sim.20.results.0105 = GetSimResults_Dir(file.path(results.dir_n1000_rJ3,"SimBin_P120_P220.01.05"), 20, 20)
 
 ##############################################################################################################################
 #############################Simulation Results for Joint Variance Explained = 0.05 in both data sets                  #######
 ##############################################################################################################################
-sim.20.results.05005 = GetSimResults_Dir(file.path(results.dir_n1000_rJ3,"SimBin_P120_P220.05.005"), 20, 20)
+sim.20.results.0501 = GetSimResults_Dir(file.path(results.dir_n1000_rJ3,"SimBin_P120_P220.05.01"), 20, 20)
 
 ####################################################################################################################
 #############################Simulation Results for Joint Variance Explained = 0.05 in both data sets (Total R^2 = 0.75)
 ####################################################################################################################
-sim.20.results.005005 = GetSimResults_Dir(file.path(results.dir_n1000_rJ3,"SimBin_P120_P220.005.005"), 20, 20)
+sim.20.results.0101 = GetSimResults_Dir(file.path(results.dir_n1000_rJ3,"SimBin_P120_P220.01.01"), 20, 20)
 
 ##############################################################################################################################
 #############################Make Plots and Images    ########################################################################
 ##############################################################################################################################
-AllSims20 = cbind(sim.20.results.005005, sim.20.results.05005, sim.20.results.00505, sim.20.results.0505)
+AllSims20 = cbind(sim.20.results.0101, sim.20.results.0501, sim.20.results.0105, sim.20.results.0505)
 AllSims20[,"Indiv.Var.Exp.X"] = 0.25
 AllSims20[,"Indiv.Var.Exp.Y"] = 0.25
-AllSims20.rows = rbind(sim.20.results.005005, sim.20.results.05005, sim.20.results.00505, sim.20.results.0505)
+AllSims20.rows = rbind(sim.20.results.0101, sim.20.results.0501, sim.20.results.0105, sim.20.results.0505)
 
 AllSims20.rows[,"n"] = 1000; AllSims20.rows[,"r.J"] = 3;
 Time.Table_p220_n1000_rJ3 = aggregate(cbind(OracleProJIVE_Time, ProJIVE_Time, AJIVE_Time, R.JIVE_Time, GIPCA_Time,  dCCA_Time)
                                       ~ JntVarEx1 + JntVarEx2 + p2 + n + r.J, data = AllSims20.rows,
                                       FUN = function(x) paste0(round(mean(x/60),1), " (", round(sd(x/60),3), ")"))
 sim.20.gg = ConvSims_gg_ProJIVE2(AllSims20, 1000)
-sim.20.gg.data = sim.20.gg$Norms
+sim.20.gg$Norms$Method2 = sim.20.gg$Norms$Method
+sim.20.gg$Norms$Method = factor(sim.20.gg$Norms$Method2,
+                                 levels = levels(sim.20.gg$Norms$Method),
+                                 labels = c(levels(sim.20.gg$Norms$Method)[1:5], "D-CCA"))
+sim.20.gg.data = sim.20.gg$Norms[-grep("Oracle", sim.20.gg$Norms$Method),]
 sim.20.scores = sim.20.gg.data[grep("Score", sim.20.gg.data[,"Type"]),]
 sim.20.loads = sim.20.gg.data[grep("Loadings", sim.20.gg.data[,"Type"]),]
 
-norm.plot.20.legend = gg.norm.plot.2(sim.20.gg.data, cbPalette[2:7], text.size = 9, show.legend = TRUE)
-pmse.plot.20.legend = gg.pmse.plot(sim.20.gg$PMSEs, cbPalette[2:7], text.size = 9, show.legend = TRUE, y.max = 1.5)
+norm.plot.20.legend = gg.norm.plot.2(sim.20.gg.data, cbPalette[7:2], text.size = 9, show.legend = TRUE)
+pmse.plot.20.legend = gg.pmse.plot(sim.20.gg$PMSEs, cbPalette[7:2], text.size = 9, show.legend = TRUE, y.max = 1.5)
 
 plot.name = paste("GG_SimBin_n1000_rJ3_P120_P220_ScoreAndLoadNormPlots_wLegend", Sys.Date(), ".pdf", sep = "")
 pdf(file = file.path(imgs.fldr_n1000_rJ3, plot.name))
-gg.norm.plot.2(sim.20.gg.data, cbPalette[2:7], text.size = 15, show.legend = TRUE)
+gg.norm.plot.2(sim.20.gg.data, cbPalette[7:2], text.size = 15, show.legend = TRUE)
 dev.off()
 
 plot.name = paste("GG_SimBin_n1000_rJ3_P120_P220_ScoreAndLoadPMSEPlots_wLegend", Sys.Date(), ".pdf", sep = "")
@@ -280,9 +308,9 @@ print(pmse.plot.20.legend)
 dev.off()
 
 
-# norm.plot.20 = gg.norm.plot.2(sim.20.gg.data, cbPalette[2:7], text.size = 9)
-# score.plot.20 = gg.score.norm.plot(sim.20.scores, cbPalette[2:7], text.size = 9, show.legend = TRUE)
-# load.plot.20 = gg.load.norm.plot(sim.20.loads, cbPalette[2:7], text.size = 9, show.legend = TRUE)
+# norm.plot.20 = gg.norm.plot.2(sim.20.gg.data, cbPalette[7:2], text.size = 9)
+# score.plot.20 = gg.score.norm.plot(sim.20.scores, cbPalette[7:2], text.size = 9, show.legend = TRUE)
+# load.plot.20 = gg.load.norm.plot(sim.20.loads, cbPalette[7:2], text.size = 9, show.legend = TRUE)
 # 
 # plot.name = paste("GG_SimBin_n1000_rJ3_P120_P220_ScoreAndLoadNormPlots", Sys.Date(), ".pdf", sep = "")
 # pdf(file = file.path(imgs.fldr_n1000_rJ3, plot.name))
@@ -299,21 +327,21 @@ dev.off()
 # print(load.plot.20)
 # dev.off()
 
-VarEx.dat.gg.20 = MakeVarEx.data.gg(AllSims20.rows, 20, 20, 1000)
-x.labs = c(expression("Joint"*"X"[1]), expression("Joint"*"X"[2]),
-           expression("Indiv"*"X"[1]), expression("Indiv"*"X"[2]))
-
-VarEx.plot.20 = ggplot(data = VarEx.dat.gg.20, aes(y = Mean_EmpJntVarEx, x = Type, fill = Method)) + 
-  geom_bar(position = "dodge", stat = "identity") + ylab("Mean Variance Explained") +  
-  scale_fill_manual(name = "JIVE Method", values = cbPalette[c(1:5,7)]) +
-  scale_x_discrete(labels = x.labs) + 
-  facet_grid(JntVarEx1.fac~JntVarEx2.fac, scales = "free", labeller = label_parsed) + 
-  theme_bw() + 
-  theme(axis.title.x = element_blank(), axis.text.x = element_text(hjust = 01, angle = 70, size = 9),
-        text = element_text(size = 11)) + 
-  geom_errorbar(aes(ymin=Mean_EmpJntVarEx-SD_EmpJntVarEx, ymax=Mean_EmpJntVarEx+SD_EmpJntVarEx), position=position_dodge(), linewidth = 0.25)  
-ggsave(file.path(imgs.fldr_n1000_rJ3, paste0("GG_VarEx_n1000_rJ3_p2_20_", lubridate::today(), ".pdf")),
-       width = 5, height = 4, units = "in")
+# VarEx.dat.gg.20 = MakeVarEx.data.gg(AllSims20.rows, 20, 20, 1000)
+# x.labs = c(expression("Joint"*"X"[1]), expression("Joint"*"X"[2]),
+#            expression("Indiv"*"X"[1]), expression("Indiv"*"X"[2]))
+# 
+# VarEx.plot.20 = ggplot(data = VarEx.dat.gg.20, aes(y = Mean_EmpJntVarEx, x = Type, fill = Method)) + 
+#   geom_bar(position = "dodge", stat = "identity") + ylab("Mean Variance Explained") +  
+#   scale_fill_manual(name = "JIVE Method", values = cbPalette[c(1:5,7)]) +
+#   scale_x_discrete(labels = x.labs) + 
+#   facet_grid(JntVarEx1.fac~JntVarEx2.fac, scales = "free", labeller = label_parsed) + 
+#   theme_bw() + 
+#   theme(axis.title.x = element_blank(), axis.text.x = element_text(hjust = 01, angle = 70, size = 9),
+#         text = element_text(size = 11)) + 
+#   geom_errorbar(aes(ymin=Mean_EmpJntVarEx-SD_EmpJntVarEx, ymax=Mean_EmpJntVarEx+SD_EmpJntVarEx), position=position_dodge(), linewidth = 0.25)  
+# ggsave(file.path(imgs.fldr_n1000_rJ3, paste0("GG_VarEx_n1000_rJ3_p2_20_", lubridate::today(), ".pdf")),
+#        width = 5, height = 4, units = "in")
 
 ########################################################################################################################
 ########################################################################################################################
@@ -327,25 +355,25 @@ sim.200.results.0505 = GetSimResults_Dir(file.path(results.dir_n1000_rJ3, "SimBi
 ##############################################################################################################################
 #############################Simulation Results for Joint Variance Explained = 0.05 in data set 1 and 0.5 in dataset 2 #######
 ##############################################################################################################################
-sim.200.results.00505 = GetSimResults_Dir(file.path(results.dir_n1000_rJ3,"SimBin_P120_P2200.005.05"), 20, 200)
+sim.200.results.0105 = GetSimResults_Dir(file.path(results.dir_n1000_rJ3,"SimBin_P120_P2200.01.05"), 20, 200)
 
 ##############################################################################################################################
 #############################Simulation Results for Joint Variance Explained = 0.05 in both data sets                  #######
 ##############################################################################################################################
-sim.200.results.05005 = GetSimResults_Dir(file.path(results.dir_n1000_rJ3,"SimBin_P120_P2200.05.005"), 20, 200)
+sim.200.results.0501 = GetSimResults_Dir(file.path(results.dir_n1000_rJ3,"SimBin_P120_P2200.05.01"), 20, 200)
 
 ####################################################################################################################
 #############################Simulation Results for Joint Variance Explained = 0.05 in both data sets (Total R^2 = 0.75)
 ####################################################################################################################
-sim.200.results.005005 = GetSimResults_Dir(file.path(results.dir_n1000_rJ3,"SimBin_P120_P2200.005.005"), 20, 200)
+sim.200.results.0101 = GetSimResults_Dir(file.path(results.dir_n1000_rJ3,"SimBin_P120_P2200.01.01"), 20, 200)
 
 ##############################################################################################################################
 #############################Make Plots and Images    ########################################################################
 ##############################################################################################################################
-AllSims200 = cbind(sim.200.results.005005, sim.200.results.05005, sim.200.results.00505, sim.200.results.0505)
+AllSims200 = cbind(sim.200.results.0101, sim.200.results.0501, sim.200.results.0105, sim.200.results.0505)
 AllSims200[,"Indiv.Var.Exp.X"] = 0.25
 AllSims200[,"Indiv.Var.Exp.Y"] = 0.25
-AllSims200.rows = rbind(sim.200.results.005005, sim.200.results.05005, sim.200.results.00505, sim.200.results.0505)
+AllSims200.rows = rbind(sim.200.results.0101, sim.200.results.0501, sim.200.results.0105, sim.200.results.0505)
 
 AllSims200.rows[,"n"] = 1000; AllSims200.rows[,"r.J"] = 3;
 Time.Table_p2200_n1000_rJ3 = aggregate(cbind(OracleProJIVE_Time, ProJIVE_Time, AJIVE_Time, R.JIVE_Time,  GIPCA_Time, dCCA_Time)
@@ -356,13 +384,17 @@ Time.Table_n1000_rJ3 = rbind(Time.Table_p220_n1000_rJ3, Time.Table_p2200_n1000_r
 Time.Table_rJ3 = Time.Table_n1000_rJ3
 
 sim.200.gg = ConvSims_gg_ProJIVE2(AllSims200, 1000)
-sim.200.gg.data = sim.200.gg$Norms
+sim.200.gg$Norms$Method2 = sim.200.gg$Norms$Method
+sim.200.gg$Norms$Method = factor(sim.200.gg$Norms$Method2,
+                                levels = levels(sim.200.gg$Norms$Method),
+                                labels = c(levels(sim.200.gg$Norms$Method)[1:5], "D-CCA"))
+sim.200.gg.data = sim.200.gg$Norms[-grep("Oracle", sim.20.gg$Norms$Method),]
 
 sim.200.scores = sim.200.gg.data[grep("Score", sim.200.gg.data[,"Type"]),]
 sim.200.loads = sim.200.gg.data[grep("Loadings", sim.200.gg.data[,"Type"]),]
 
-norm.plot.200.legend = gg.norm.plot.2(sim.200.gg.data, cbPalette[2:7], text.size = 9, show.legend = TRUE)
-pmse.plot.200.legend = gg.pmse.plot(sim.200.gg$PMSEs, cbPalette[2:7], text.size = 9, show.legend = TRUE, y.max = 1.5)
+norm.plot.200.legend = gg.norm.plot.2(sim.200.gg.data, cbPalette[7:2], text.size = 9, show.legend = TRUE)
+pmse.plot.200.legend = gg.pmse.plot(sim.200.gg$PMSEs, cbPalette[7:2], text.size = 9, show.legend = TRUE, y.max = 1.5)
 
 plot.name = paste("GG_SimBin_n1000_rJ3_P120_p2200_ScoreAndLoadNormPlots", Sys.Date(), ".pdf", sep = "")
 pdf(file = file.path(imgs.fldr_n1000_rJ3, plot.name))
@@ -374,7 +406,9 @@ pdf(file = file.path(imgs.fldr_n1000_rJ3, plot.name))
 print(pmse.plot.200.legend)
 dev.off()
 
-legend = get_legend(norm.plot.200.legend + theme(text = element_text(size = 7)) + guides(fill=guide_legend(nrow=1)))
+legend = get_plot_component(norm.plot.200.legend +
+                              theme(text = element_text(size = 7)) +
+                              guides(fill=guide_legend(nrow=1)), 'guide-box-bottom', return_all = TRUE)
 
 pdf(file = file.path(results.dir_n1000_rJ3, paste0("GG_ScoreAndLoading_NormPlots_", today(), ".pdf")), width = 5.5, height = 6)
 plot_grid(plot_grid(norm.plot.20.legend + theme(legend.position = "none"), norm.plot.200.legend + theme(legend.position = "none"),
@@ -386,16 +420,16 @@ plot_grid(plot_grid(pmse.plot.20.legend + theme(legend.position = "none"), pmse.
                     ncol = 1, align = 'v', labels = "AUTO"), legend, ncol = 1, rel_heights = c(5.25, 0.75))
 dev.off()
 
-# pmse.plot.200 = gg.pmse.plot(sim.200.gg$PMSEs, cbPalette[2:7], text.size = 9, lty = 1.5, show.legend = TRUE, y.max = 1.5)
-# norm.plot.200 = gg.norm.plot.2(sim.200.gg.data, cbPalette[2:7], text.size = 9, lty = 1.5)
-# score.plot.200 = gg.score.norm.plot(sim.200.scores, cbPalette[2:7], text.size = 9, show.legend = TRUE)
-# load.plot.200 = gg.load.norm.plot(sim.200.loads, cbPalette[2:7], text.size = 9, show.legend = TRUE)
-# score.plot.200 = gg.score.pmse.plot(sim.200.scores, cbPalette[2:7], text.size = 9, show.legend = TRUE)
-# load.plot.200 = gg.load.pmse.plot(sim.200.loads, cbPalette[2:7], text.size = 9, show.legend = TRUE)
+# pmse.plot.200 = gg.pmse.plot(sim.200.gg$PMSEs, cbPalette[7:2], text.size = 9, lty = 1.5, show.legend = TRUE, y.max = 1.5)
+# norm.plot.200 = gg.norm.plot.2(sim.200.gg.data, cbPalette[7:2], text.size = 9, lty = 1.5)
+# score.plot.200 = gg.score.norm.plot(sim.200.scores, cbPalette[7:2], text.size = 9, show.legend = TRUE)
+# load.plot.200 = gg.load.norm.plot(sim.200.loads, cbPalette[7:2], text.size = 9, show.legend = TRUE)
+# score.plot.200 = gg.score.pmse.plot(sim.200.scores, cbPalette[7:2], text.size = 9, show.legend = TRUE)
+# load.plot.200 = gg.load.pmse.plot(sim.200.loads, cbPalette[7:2], text.size = 9, show.legend = TRUE)
 # 
 # plot.name = paste("GG_SimBin_n1000_rJ3_P120_p2200_ScoreAndLoadNormPlots_wLegend", Sys.Date(), ".pdf", sep = "")
 # pdf(file = file.path(imgs.fldr_n1000_rJ3, plot.name))
-# gg.norm.plot.2(sim.200.gg.data, cbPalette[2:7], text.size = 15, show.legend = TRUE)
+# gg.norm.plot.2(sim.200.gg.data, cbPalette[7:2], text.size = 15, show.legend = TRUE)
 # dev.off()
 # 
 # plot.name = paste("GG_SimBin_n1000_rJ3_P120_p2200_ScorePlots", Sys.Date(), ".pdf", sep = "")
@@ -408,23 +442,23 @@ dev.off()
 # print(load.plot.200)
 # dev.off()
 # 
-VarEx.dat.gg.200 = MakeVarEx.data.gg(AllSims200.rows, 20, 200, 1000)
-x.labs = c(expression("Joint"*"X"[1]), expression("Joint"*"X"[2]),
-           expression("Indiv"*"X"[1]), expression("Indiv"*"X"[2]))
-
-VarEx.plot.200 = ggplot(data = VarEx.dat.gg.200, aes(y = Mean_EmpJntVarEx, x = Type, fill = Method)) + 
-  geom_bar(position = "dodge", stat = "identity") + ylab("Mean Variance Explained") +  
-  scale_fill_manual(name = "JIVE Method", values = cb.cols.vx) +
-  scale_x_discrete(labels = x.labs) + 
-  facet_grid(JntVarEx1.fac~JntVarEx2.fac, scales = "free", labeller = label_parsed) + 
-  theme_bw() + 
-  theme(axis.title.x = element_blank(), axis.text.x = element_text(hjust = 01, angle = 70, size = 9),
-        text = element_text(size = 11)) + 
-  geom_errorbar(aes(ymin=Mean_EmpJntVarEx-SD_EmpJntVarEx, ymax=Mean_EmpJntVarEx+SD_EmpJntVarEx), position=position_dodge(), linewidth = 0.25) 
-ggsave(file.path(imgs.fldr_n1000_rJ3, paste0("GG_VarEx_n1000_rJ3_p2_200_", lubridate::today(), ".pdf")),
-       width = 5, height = 4, units = "in")
-
-
+# VarEx.dat.gg.200 = MakeVarEx.data.gg(AllSims200.rows, 20, 200, 1000)
+# x.labs = c(expression("Joint"*"X"[1]), expression("Joint"*"X"[2]),
+#            expression("Indiv"*"X"[1]), expression("Indiv"*"X"[2]))
+# 
+# VarEx.plot.200 = ggplot(data = VarEx.dat.gg.200, aes(y = Mean_EmpJntVarEx, x = Type, fill = Method)) + 
+#   geom_bar(position = "dodge", stat = "identity") + ylab("Mean Variance Explained") +  
+#   scale_fill_manual(name = "JIVE Method", values = cb.cols.vx) +
+#   scale_x_discrete(labels = x.labs) + 
+#   facet_grid(JntVarEx1.fac~JntVarEx2.fac, scales = "free", labeller = label_parsed) + 
+#   theme_bw() + 
+#   theme(axis.title.x = element_blank(), axis.text.x = element_text(hjust = 01, angle = 70, size = 9),
+#         text = element_text(size = 11)) + 
+#   geom_errorbar(aes(ymin=Mean_EmpJntVarEx-SD_EmpJntVarEx, ymax=Mean_EmpJntVarEx+SD_EmpJntVarEx), position=position_dodge(), linewidth = 0.25) 
+# ggsave(file.path(imgs.fldr_n1000_rJ3, paste0("GG_VarEx_n1000_rJ3_p2_200_", lubridate::today(), ".pdf")),
+#        width = 5, height = 4, units = "in")
+# 
+# 
 GG.Time.Table = rbind(Time.Table_rJ1, Time.Table_rJ3)
 write.csv(GG.Time.Table, file = "H:/My Documents/ProJIVE/Results/Simulation_Results/GG_Time_Table.csv", row.names = FALSE)
 
@@ -451,25 +485,25 @@ write.csv(GG.Time.Table, file = "H:/My Documents/ProJIVE/Results/Simulation_Resu
 # ##############################################################################################################################
 # #############################Simulation Results for Joint Variance Explained = 0.05 in data set 1 and 0.5 in dataset 2 #######
 # ##############################################################################################################################
-# sim.results.00505 = GetSimResults_Dir(file.path(results.dir_n500_rJ1,"SimBin_P120_P220.005.05"), 20, 20)
+# sim.results.0105 = GetSimResults_Dir(file.path(results.dir_n500_rJ1,"SimBin_P120_P220.01.05"), 20, 20)
 # 
 # ##############################################################################################################################
 # #############################Simulation Results for Joint Variance Explained = 0.05 in both data sets                  #######
 # ##############################################################################################################################
-# sim.results.05005 = GetSimResults_Dir(file.path(results.dir_n500_rJ1,"SimBin_P120_P220.05.005"), 20, 20)
+# sim.results.0501 = GetSimResults_Dir(file.path(results.dir_n500_rJ1,"SimBin_P120_P220.05.01"), 20, 20)
 # 
 # ####################################################################################################################
 # #############################Simulation Results for Joint Variance Explained = 0.05 in both data sets (Total R^2 = 0.75)
 # ####################################################################################################################
-# sim.results.005005 = GetSimResults_Dir(file.path(results.dir_n500_rJ1,"SimBin_P120_P220.005.005"), 20, 20)
+# sim.results.0101 = GetSimResults_Dir(file.path(results.dir_n500_rJ1,"SimBin_P120_P220.01.01"), 20, 20)
 # 
 # ##############################################################################################################################
 # #############################Make Plots and Images    ########################################################################
 # ##############################################################################################################################
-# AllSims = cbind(sim.results.005005, sim.results.05005, sim.results.00505, sim.results.0505)
+# AllSims = cbind(sim.results.0101, sim.results.0501, sim.results.0105, sim.results.0505)
 # AllSims[,"Indiv.Var.Exp.X"] = 0.25
 # AllSims[,"Indiv.Var.Exp.Y"] = 0.25
-# AllSims.rows = rbind(sim.results.005005, sim.results.05005, sim.results.00505, sim.results.0505)
+# AllSims.rows = rbind(sim.results.0101, sim.results.0501, sim.results.0105, sim.results.0505)
 # 
 # AllSims.rows[,"n"] = 500; AllSims.rows[,"r.J"] = 1;
 # Time.Table_p220_n500_rJ1 = aggregate(cbind(OracleProJIVE_Time, ProJIVE_Time, AJIVE_Time, R.JIVE_Time,  GIPCA_Time, dCCA_Time) 
@@ -483,9 +517,9 @@ write.csv(GG.Time.Table, file = "H:/My Documents/ProJIVE/Results/Simulation_Resu
 # sim.scores = sim.gg.data[grep("Score", sim.gg.data[,"Type"]),]
 # sim.loads = sim.gg.data[grep("Loadings", sim.gg.data[,"Type"]),]
 # 
-# norm.plot = gg.norm.plot.2(sim.gg.data, cbPalette[2:7], text.size = 15)
-# score.plot = gg.score.norm.plot(sim.scores, cbPalette[2:7], text.size = 15, show.legend = TRUE)
-# load.plot = gg.load.norm.plot(sim.loads, cbPalette[2:7], text.size = 15, show.legend = TRUE)
+# norm.plot = gg.norm.plot.2(sim.gg.data, cbPalette[7:2], text.size = 15)
+# score.plot = gg.score.norm.plot(sim.scores, cbPalette[7:2], text.size = 15, show.legend = TRUE)
+# load.plot = gg.load.norm.plot(sim.loads, cbPalette[7:2], text.size = 15, show.legend = TRUE)
 # 
 # plot.name = paste("GG_SimBin_n500_rJ1_P120_P220_ScoreAndLoadNormPlots", Sys.Date(), ".pdf", sep = "")
 # pdf(file = file.path(imgs.fldr_n500_rJ1, plot.name))
@@ -536,25 +570,25 @@ write.csv(GG.Time.Table, file = "H:/My Documents/ProJIVE/Results/Simulation_Resu
 # ##############################################################################################################################
 # #############################Simulation Results for Joint Variance Explained = 0.05 in data set 1 and 0.5 in dataset 2 #######
 # ##############################################################################################################################
-# sim.results.00505 = GetSimResults_Dir(file.path(results.dir_n500_rJ1,"SimBin_P120_P2200.005.05"), 20, 200)
+# sim.results.0105 = GetSimResults_Dir(file.path(results.dir_n500_rJ1,"SimBin_P120_P2200.01.05"), 20, 200)
 # 
 # ##############################################################################################################################
 # #############################Simulation Results for Joint Variance Explained = 0.05 in both data sets                  #######
 # ##############################################################################################################################
-# sim.results.05005 = GetSimResults_Dir(file.path(results.dir_n500_rJ1,"SimBin_P120_P2200.05.005"), 20, 200)
+# sim.results.0501 = GetSimResults_Dir(file.path(results.dir_n500_rJ1,"SimBin_P120_P2200.05.01"), 20, 200)
 # 
 # ####################################################################################################################
 # #############################Simulation Results for Joint Variance Explained = 0.05 in both data sets (Total R^2 = 0.75)
 # ####################################################################################################################
-# sim.results.005005 = GetSimResults_Dir(file.path(results.dir_n500_rJ1,"SimBin_P120_P2200.005.005"), 20, 200)
+# sim.results.0101 = GetSimResults_Dir(file.path(results.dir_n500_rJ1,"SimBin_P120_P2200.01.01"), 20, 200)
 # 
 # ##############################################################################################################################
 # #############################Make Plots and Images    ########################################################################
 # ##############################################################################################################################
-# AllSims = cbind(sim.results.005005, sim.results.05005, sim.results.00505, sim.results.0505)
+# AllSims = cbind(sim.results.0101, sim.results.0501, sim.results.0105, sim.results.0505)
 # AllSims[,"Indiv.Var.Exp.X"] = 0.25
 # AllSims[,"Indiv.Var.Exp.Y"] = 0.25
-# AllSims.rows = rbind(sim.results.005005, sim.results.05005, sim.results.00505, sim.results.0505)
+# AllSims.rows = rbind(sim.results.0101, sim.results.0501, sim.results.0105, sim.results.0505)
 # 
 # AllSims.rows[,"n"] = 500; AllSims.rows[,"r.J"] = 1;
 # Time.Table_p2200_n500_rJ1 = aggregate(cbind(R.JIVE_Time, AJIVE_Time, ProJIVE_Time, GIPCA_Time) 
@@ -569,9 +603,9 @@ write.csv(GG.Time.Table, file = "H:/My Documents/ProJIVE/Results/Simulation_Resu
 # sim.scores = sim.gg.data[grep("Score", sim.gg.data[,"Type"]),]
 # sim.loads = sim.gg.data[grep("Loadings", sim.gg.data[,"Type"]),]
 # 
-# norm.plot = gg.norm.plot.2(sim.gg.data, cbPalette[2:7], text.size = 15, show.legend = TRUE)
-# score.plot = gg.score.norm.plot(sim.scores, cbPalette[2:7], text.size = 15, show.legend = TRUE)
-# load.plot = gg.load.norm.plot(sim.loads, cbPalette[2:7], text.size = 15, show.legend = TRUE)
+# norm.plot = gg.norm.plot.2(sim.gg.data, cbPalette[7:2], text.size = 15, show.legend = TRUE)
+# score.plot = gg.score.norm.plot(sim.scores, cbPalette[7:2], text.size = 15, show.legend = TRUE)
+# load.plot = gg.load.norm.plot(sim.loads, cbPalette[7:2], text.size = 15, show.legend = TRUE)
 # 
 # plot.name = paste("GG_SimBin_n500_rJ1_P120_P2200_ScoreAndLoadNormPlots", Sys.Date(), ".pdf", sep = "")
 # pdf(file = file.path(imgs.fldr_n500_rJ1, plot.name))
@@ -632,25 +666,25 @@ write.csv(GG.Time.Table, file = "H:/My Documents/ProJIVE/Results/Simulation_Resu
 # ##############################################################################################################################
 # #############################Simulation Results for Joint Variance Explained = 0.05 in data set 1 and 0.5 in dataset 2 #######
 # ##############################################################################################################################
-# sim.results.00505 = GetSimResults_Dir(file.path(results.dir_n500_rJ3,"SimBin_P120_P220.005.05"), 20, 20)
+# sim.results.0105 = GetSimResults_Dir(file.path(results.dir_n500_rJ3,"SimBin_P120_P220.01.05"), 20, 20)
 # 
 # ##############################################################################################################################
 # #############################Simulation Results for Joint Variance Explained = 0.05 in both data sets                  #######
 # ##############################################################################################################################
-# sim.results.05005 = GetSimResults_Dir(file.path(results.dir_n500_rJ3,"SimBin_P120_P220.05.005"), 20, 20)
+# sim.results.0501 = GetSimResults_Dir(file.path(results.dir_n500_rJ3,"SimBin_P120_P220.05.01"), 20, 20)
 # 
 # ####################################################################################################################
 # #############################Simulation Results for Joint Variance Explained = 0.05 in both data sets (Total R^2 = 0.75)
 # ####################################################################################################################
-# sim.results.005005 = GetSimResults_Dir(file.path(results.dir_n500_rJ3,"SimBin_P120_P220.005.005"), 20, 20)
+# sim.results.0101 = GetSimResults_Dir(file.path(results.dir_n500_rJ3,"SimBin_P120_P220.01.01"), 20, 20)
 # 
 # ##############################################################################################################################
 # #############################Make Plots and Images    ########################################################################
 # ##############################################################################################################################
-# AllSims = cbind(sim.results.005005, sim.results.05005, sim.results.00505, sim.results.0505)
+# AllSims = cbind(sim.results.0101, sim.results.0501, sim.results.0105, sim.results.0505)
 # AllSims[,"Indiv.Var.Exp.X"] = 0.25
 # AllSims[,"Indiv.Var.Exp.Y"] = 0.25
-# AllSims.rows = rbind(sim.results.005005, sim.results.05005, sim.results.00505, sim.results.0505)
+# AllSims.rows = rbind(sim.results.0101, sim.results.0501, sim.results.0105, sim.results.0505)
 # 
 # AllSims.rows[,"n"] = 500; AllSims.rows[,"r.J"] = 3;
 # Time.Table_p220_n500_rJ3 = aggregate(cbind(OracleProJIVE_Time, ProJIVE_Time, AJIVE_Time, R.JIVE_Time,  GIPCA_Time, dCCA_Time) 
@@ -663,9 +697,9 @@ write.csv(GG.Time.Table, file = "H:/My Documents/ProJIVE/Results/Simulation_Resu
 # sim.scores = sim.gg.data[grep("Score", sim.gg.data[,"Type"]),]
 # sim.loads = sim.gg.data[grep("Loadings", sim.gg.data[,"Type"]),]
 # 
-# norm.plot = gg.norm.plot.2(sim.gg.data, cbPalette[2:7], text.size = 15)
-# score.plot = gg.score.norm.plot(sim.scores, cbPalette[2:7], text.size = 15, show.legend = TRUE)
-# load.plot = gg.load.norm.plot(sim.loads, cbPalette[2:7], text.size = 15, show.legend = TRUE)
+# norm.plot = gg.norm.plot.2(sim.gg.data, cbPalette[7:2], text.size = 15)
+# score.plot = gg.score.norm.plot(sim.scores, cbPalette[7:2], text.size = 15, show.legend = TRUE)
+# load.plot = gg.load.norm.plot(sim.loads, cbPalette[7:2], text.size = 15, show.legend = TRUE)
 # 
 # plot.name = paste("GG_SimBin_n500_rJ3_P120_P220_ScoreAndLoadNormPlots", Sys.Date(), ".pdf", sep = "")
 # pdf(file = file.path(imgs.fldr_n500_rJ3, plot.name))
@@ -718,25 +752,25 @@ write.csv(GG.Time.Table, file = "H:/My Documents/ProJIVE/Results/Simulation_Resu
 # ##############################################################################################################################
 # #############################Simulation Results for Joint Variance Explained = 0.05 in data set 1 and 0.5 in dataset 2 #######
 # ##############################################################################################################################
-# sim.results.00505 = GetSimResults_Dir(file.path(results.dir_n500_rJ3,"SimBin_P120_P2200.005.05"), 20, 200)
+# sim.results.0105 = GetSimResults_Dir(file.path(results.dir_n500_rJ3,"SimBin_P120_P2200.01.05"), 20, 200)
 # 
 # ##############################################################################################################################
 # #############################Simulation Results for Joint Variance Explained = 0.05 in both data sets                  #######
 # ##############################################################################################################################
-# sim.results.05005 = GetSimResults_Dir(file.path(results.dir_n500_rJ3,"SimBin_P120_P2200.05.005"), 20, 200)
+# sim.results.0501 = GetSimResults_Dir(file.path(results.dir_n500_rJ3,"SimBin_P120_P2200.05.01"), 20, 200)
 # 
 # ####################################################################################################################
 # #############################Simulation Results for Joint Variance Explained = 0.05 in both data sets (Total R^2 = 0.75)
 # ####################################################################################################################
-# sim.results.005005 = GetSimResults_Dir(file.path(results.dir_n500_rJ3,"SimBin_P120_P2200.005.005"), 20, 200)
+# sim.results.0101 = GetSimResults_Dir(file.path(results.dir_n500_rJ3,"SimBin_P120_P2200.01.01"), 20, 200)
 # 
 # ##############################################################################################################################
 # #############################Make Plots and Images    ########################################################################
 # ##############################################################################################################################
-# AllSims = cbind(sim.results.005005, sim.results.05005, sim.results.00505, sim.results.0505)
+# AllSims = cbind(sim.results.0101, sim.results.0501, sim.results.0105, sim.results.0505)
 # AllSims[,"Indiv.Var.Exp.X"] = 0.25
 # AllSims[,"Indiv.Var.Exp.Y"] = 0.25
-# AllSims.rows = rbind(sim.results.005005, sim.results.05005, sim.results.00505, sim.results.0505)
+# AllSims.rows = rbind(sim.results.0101, sim.results.0501, sim.results.0105, sim.results.0505)
 # 
 # AllSims.rows[,"n"] = 500; AllSims.rows[,"r.J"] = 3;
 # Time.Table_p2200_n500_rJ3 = aggregate(cbind(OracleProJIVE_Time, ProJIVE_Time, AJIVE_Time, R.JIVE_Time,  GIPCA_Time, dCCA_Time) 
@@ -750,9 +784,9 @@ write.csv(GG.Time.Table, file = "H:/My Documents/ProJIVE/Results/Simulation_Resu
 # sim.scores = sim.gg.data[grep("Score", sim.gg.data[,"Type"]),]
 # sim.loads = sim.gg.data[grep("Loadings", sim.gg.data[,"Type"]),]
 # 
-# norm.plot = gg.norm.plot.2(sim.gg.data, cbPalette[2:7], text.size = 15)
-# score.plot = gg.score.norm.plot(sim.scores, cbPalette[2:7], text.size = 15, show.legend = TRUE)
-# load.plot = gg.load.norm.plot(sim.loads, cbPalette[2:7], text.size = 15, show.legend = TRUE)
+# norm.plot = gg.norm.plot.2(sim.gg.data, cbPalette[7:2], text.size = 15)
+# score.plot = gg.score.norm.plot(sim.scores, cbPalette[7:2], text.size = 15, show.legend = TRUE)
+# load.plot = gg.load.norm.plot(sim.loads, cbPalette[7:2], text.size = 15, show.legend = TRUE)
 # 
 # plot.name = paste("GG_SimBin_n500_rJ3_P120_P2200_ScoreAndLoadNormPlots", Sys.Date(), ".pdf", sep = "")
 # pdf(file = file.path(imgs.fldr_n500_rJ3, plot.name))

@@ -192,7 +192,7 @@ pdf(file = file.path(imgs.fldr_n1000_rJ1, plot.name))
 print(pmse.plot.200)
 dev.off()
 
-pdf(file = file.path(results.dir_n1000_rJ1, paste0("MR_rJ1_ScoreAndLoading_NormPlots_", today(), ".pdf")), width = 5.5, height = 6)
+pdf(file = file.path(results.dir_n1000_rJ1, paste0("MR_rJ1_ScoreAndLoading_NormPlots_", today(), ".pdf")), width = 6.5, height = 9)
 plot_grid(plot_grid(norm.plot.20+theme(legend.position = "none"),
                     norm.plot.200+theme(legend.position = "none"),
                     ncol = 1, align = 'v', labels = "AUTO"), 
@@ -400,12 +400,12 @@ legend = get_plot_component(norm.plot.200.legend +
                               guides(fill=guide_legend(nrow=1)), 'guide-box-bottom', return_all = TRUE)
 
 
-pdf(file = file.path(results.dir_n1000_rJ3, paste0("MR_ScoreAndLoading_NormPlots_", today(), ".pdf")), width = 5.5, height = 6)
+pdf(file = file.path(results.dir_n1000_rJ3, paste0("MR_ScoreAndLoading_NormPlots_", today(), ".pdf")), width = 6.5, height = 9)
 plot_grid(plot_grid(norm.plot.20 + theme(legend.position = "none"), norm.plot.200.legend + theme(legend.position = "none"),
                     ncol = 1, align = 'v', labels = "AUTO"), legend, ncol = 1, rel_heights = c(5.25, 0.75))
 dev.off()
 
-pdf(file = file.path(results.dir_n1000_rJ3, paste0("MR_ScoreAndLoading_PMSEPlots_", today(), ".pdf")), width = 5.5, height = 6)
+pdf(file = file.path(results.dir_n1000_rJ3, paste0("MR_ScoreAndLoading_PMSEPlots_", today(), ".pdf")), width = 6.5, height = 9)
 plot_grid(plot_grid(pmse.plot.20 + theme(legend.position = "none"), pmse.plot.200.legend + theme(legend.position = "none"),
                     ncol = 1, align = 'v', labels = "AUTO"), legend, ncol = 1, rel_heights = c(5.25, 0.75))
 dev.off()
@@ -449,7 +449,7 @@ dev.off()
 # 
 # legend = get_legend(norm.plot.200.legend + theme(text = element_text(size = 7)) +guides(fill=guide_legend(nrow=1)))
 # 
-# pdf(file = file.path(results.dir_n1000_rJ3, paste0("MR_ScoreAndLoading_NormPlots_", today(), ".pdf")), width = 5.5, height = 6)
+# pdf(file = file.path(results.dir_n1000_rJ3, paste0("MR_ScoreAndLoading_NormPlots_", today(), ".pdf")), width = 6.5, height = 9)
 # plot_grid(plot_grid(norm.plot.20+theme(legend.position = "none"),
 #                     norm.plot.200+theme(legend.position = "none"),
 #                     ncol = 1, align = 'v', labels = "AUTO"), 

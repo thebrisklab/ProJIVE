@@ -1,0 +1,20 @@
+#BSUB -J dcca1
+#BSUB -W 23:59
+
+#BSUB -q medium
+
+#BSUB -n 1
+
+#BSUB -M 8192
+
+#BSUB -R rusage[mem=8192]
+
+#BSUB -N 
+
+#BSUB -o /rsrch2/biostatistics/hshu/paper1/simulation1/setup1_paper_revision1/output
+
+#BSUB -e /rsrch2/biostatistics/hshu/paper1/simulation1/setup1_paper_revision1/output
+
+#BSUB -cwd /rsrch2/biostatistics/hshu/paper1/simulation1/setup1_paper_revision1
+
+python simulation1_dcca.py 1

@@ -1,0 +1,318 @@
+#############################################################################################################################
+### Examining the issue found in simulation studies of analyses when joint variance is mixed ################################
+###         across datasets. So far, findings in this single trial reflect the trends in     ################################
+###         simulation studies; namely when first joint variation is small, results are less ###############################
+###         accurate. This violates the idea that the method is symmetric and the order in   ###############################
+###         which datasets are entered should not make a difference. This finding appears    ###############################
+###         for both R.JIVE and ProJIVE                                                      ###############################
+### Author: Raphiel J. Murden                                                                ################################
+### Supervised by Benjamin Risk                                                              ################################
+#############################################################################################################################
+rep_number = 217
+r.J = 1
+r.I1 = 1
+r.I2 = 1
+#outdir = args[2]
+n = 20
+p1 = 5
+p2 = 5 ####Note that p1 and p2 differ when compared to values used in simulations
+JntVarEx1 = 0.5
+JntVarEx2 = 0.05
+#files = list.files(outdir)
+IndVarEx1 = 0.25
+IndVarEx2 = 0.25
+
+# NOTE: Change the location of 'prog.dir' to the location where you have saved the file 'Functions_for_PJIVE.R' and 'Functions_for_CJIVE.R'
+prog.dir = "H:/My Documents/P-JIVE/Programs/Functions"
+prog.gipca.dir = "H:/My Documents/P-JIVE/Programs/GeneralizedIntegrativePCA-master/Functions"
+source(file.path(prog.dir, "Functions_for_CJIVE.R"))
+source(file.path(prog.dir, "Functions_for_PJIVE.R"))
+# source(file.path(prog.dir, "Functions_for_PJIVE_DEBUG.R"))
+gipca.files = list.files(prog.gipca.dir,full.names = TRUE)
+for(file.nm in gipca.files){source(file.nm)}
+doc.dir = "H:/My Documents/P-JIVE/Programs/Examples/Output"
+
+#######################################################################
+set.seed(rep_number) ##To ensure that any randomized processes give the same results each time
+
+###Construct Datasets
+true_signal_ranks = r.J + c(r.I1,r.I2)                          ##true ranks of overall signals
+ToyDat = GenerateToyData(n = n, p1 = p1, p2 = p2, JntVarEx1 = JntVarEx1, JntVarEx2 = JntVarEx2, 
+                         IndVarEx1 = IndVarEx1, IndVarEx2 =  IndVarEx2, jnt_rank = r.J,
+                         equal.eig = T,ind_rank1 = r.I1, ind_rank2 = r.I2, JntVarAdj = T, SVD.plots = F,
+                         Error = T, print.cor = F, Loads = "Rademacher", Scores = "Gaussian_Mixture")
+## Proportions of groups for mixture
+mix.probs = c(0.2, 0.5, 0.3)
+diagnoses = factor(c(rep(1, each = n*mix.probs[1]),rep(2, each = n*mix.probs[2]),rep(3, each = n*mix.probs[3])))
+blocks <- ToyDat[[2]]
+##Setup input parameters to use Gavin's EM code
+Y = do.call(cbind, blocks); P = c(p1, p2); Q = c(r.J,r.I1,r.I2)
+
+# Theta
+JntScores = ToyDat[['Scores']][['Joint']]
+IndivScore.X = ToyDat[['Scores']][["Indiv_1"]]
+IndivScore.Y = ToyDat[['Scores']][["Indiv_2"]]
+
+# WJ1 and WJ2
+JntLd.X = t(ToyDat[['Loadings']][["Joint_1"]])
+JntLd.Y = t(ToyDat[['Loadings']][["Joint_2"]])
+
+# WI1 and WI2
+IndivLd.X =t(ToyDat[['Loadings']][["Indiv_1"]])
+IndivLd.Y = t(ToyDat[['Loadings']][["Indiv_2"]])
+
+# Signal matrices
+JX = ToyDat[[1]]$J1
+JY = ToyDat[[1]]$J2
+IX = ToyDat[[1]]$I1
+IY = ToyDat[[1]]$I2
+
+# Noise Matrices
+EX = ToyDat[[1]]$E1
+EY = ToyDat[[1]]$E2
+
+# Total Signal matrices
+AX = JX + IX
+AY = JY + IY
+
+## Proportions of variation explained
+JVE.X = MatVar(JX)/MatVar(blocks[[1]])
+JVE.Y = MatVar(JY)/MatVar(blocks[[2]])
+
+IVE.X = MatVar(IX)/MatVar(blocks[[1]])
+IVE.Y = MatVar(IY)/MatVar(blocks[[2]])
+
+TotVE.X = MatVar((JX + IX))/MatVar(blocks[[1]])
+TotVE.Y = MatVar((JY + IY))/MatVar(blocks[[2]])
+
+##Looks like the variances are about equal to me ( +/- 10%)?
+# plot(apply((blocks[[1]] - AX), 2, sd))
+# plot(apply((blocks[[2]] - AY), 2, sd))
+
+#############################################
+############### ProJIVE  ####################
+# pdf(file = file.path(doc.dir, "InitialValueInvestigation.pdf"))
+PJIVE.res = ProJIVE_EM(Y=Y, P=P, Q=Q, diff.tol=1e-5, plots = FALSE, init.loads = "CJIVE")
+
+PJIVE.scores = PJIVE.res$SubjectScoreMatrix
+PJIVE.loads.X = PJIVE.res$LoadingMatrix[1:p1,-(sum(Q):(sum(Q[-3])+1))]
+PJIVE.loads.Y = PJIVE.res$LoadingMatrix[-(1:p1),-(r.J+1:r.I1)]
+
+layout(matrix(c(1:6,4,7,8),3, byrow = TRUE))
+plot(JntScores, PJIVE.scores[,1:r.J], xlab = "True Joint Scores", ylab = "ProJIVE Joint Scores", 
+     col = c(rep("orange",n), rep("green",n), rep("purple",n)), 
+     sub = paste0("Chordal Norm = ", round(chord.norm.diff(JntScores, PJIVE.scores[,1:r.J]), 3)))
+plot(IndivScore.X, PJIVE.scores[,r.J+(1:r.I1)], xlab = "True Indiv 1 Scores", ylab = "ProJIVE Indiv 1 Scores", 
+     col = c(rep("orange",n), rep("green",n)),
+     sub = paste0("Chordal Norm = ", round(chord.norm.diff(IndivScore.X, PJIVE.scores[,r.J+(1:r.I1)]), 3)))
+plot(IndivScore.Y, PJIVE.scores[,r.J+r.I1+(1:r.I2)], xlab = "True Indiv 2 Scores", ylab = "ProJIVE Indiv 2 Scores", 
+     col = c(rep("orange",n), rep("green",n)),
+     sub = paste0("Chordal Norm = ", round(chord.norm.diff(IndivScore.Y, PJIVE.scores[,r.J+r.I1+(1:r.I2)]), 3)))
+plot.new(); title("ProJIVE Results with \n R_J1^2=0.5")
+legend("left", paste("Comp.", 1:3), pch = 1, col  = c("orange", "green", "purple"),bty = "n" )
+plot(JntLd.X, PJIVE.loads.X[,1:r.J], xlab = "True Joint Loadings X", ylab = "ProJIVE Joint Loadings X", 
+     col = c(rep("orange",p1), rep("green",p1), rep("purple",p1)),  
+     sub = paste0("Chordal Norm = ", round(chord.norm.diff(JntLd.X, PJIVE.loads.X[,1:r.J]), 3)))
+plot(JntLd.Y, PJIVE.loads.Y[,1:r.J], xlab = "True Joint Loadings Y", ylab = "ProJIVE Joint Loadings Y", 
+     col = c(rep("orange",p1), rep("green",p1), rep("purple",p1)),  
+     sub = paste0("Chordal Norm = ", round(chord.norm.diff(JntLd.Y, PJIVE.loads.Y[,1:r.J]), 3)))
+plot(IndivLd.X, PJIVE.loads.X[,-(1:r.J)], xlab = "True Individual Loadings X", ylab = "ProJIVE Individual Loadings X", 
+     col = c(rep("orange",p1), rep("green",p2)), 
+     sub = paste0("Chordal Norm = ", round(chord.norm.diff(IndivLd.X, PJIVE.loads.X[,-(1:r.J)]), 3)))
+plot(IndivLd.Y, PJIVE.loads.Y[,-(1:r.J)], xlab = "True Individual Loadings Y", ylab = "ProJIVE Individual Loadings Y", 
+     col = c(rep("orange",p1), rep("green",p2)), 
+     sub = paste0("Chordal Norm = ", round(chord.norm.diff(IndivLd.Y, PJIVE.loads.Y[,-(1:r.J)]), 3)))
+layout(1)
+
+########################################
+##############  R.JIVE   ###############
+blocks.t = lapply(blocks, t)
+R.JIVE.res = jive(blocks.t, rankJ = r.J, rankA = true_signal_ranks - r.J, method = "given")
+
+# R.JIVE signal matrix estimates
+J.hat = lapply(R.JIVE.res$joint, svd, nu = r.J, nv = r.J)
+I.hat = list()
+I.hat[[1]] = svd(R.JIVE.res$individual[[1]], nu = r.I1, nv = r.I1)
+I.hat[[2]] = svd(R.JIVE.res$individual[[2]], nu = r.I2, nv = r.I2)
+
+# R.JIVE Subject Scores
+R.JIVE.jnt.scores = svd(do.call(rbind, R.JIVE.res$joint), nu = r.J, nv = r.J)$v
+R.JIVE.ind.scores.X = I.hat[[1]][['v']]
+R.JIVE.ind.scores.Y = I.hat[[2]][['v']]
+
+# R.JIVE loading estimates
+WJ = lapply(J.hat, function(x) x[['u']])
+WI = lapply(I.hat, function(x) x[['u']])
+
+# Plots of R.JIVE estimates against true counterparts
+# layout(matrix(c(1,1,1:7), 3, byrow = TRUE), heights = c(.1, 0.4, 0.4))
+# plot(1, type = "n", axes=FALSE, xlab="", ylab=""); title(sub = "temp")
+layout(matrix(c(1:6,4,7,8),3, byrow = TRUE))
+plot(JntScores, R.JIVE.jnt.scores, xlab = "True Joint Scores",ylab = "R.JIVE Joint Scores", 
+     col = c(rep("orange",n), rep("green",n), rep("purple",n)),  
+     sub = paste0("Chordal Norm = ", round(chord.norm.diff(JntScores, R.JIVE.jnt.scores), 3)))
+plot(IndivScore.X, R.JIVE.ind.scores.X, xlab = "True Indiv 1 Scores", ylab = "ProJIVE Indiv 1 Scores", 
+     col = c(rep("orange",n), rep("green",n)),
+     sub = paste0("Chordal Norm = ", round(chord.norm.diff(IndivScore.X, R.JIVE.ind.scores.X), 3)))
+plot(IndivScore.Y, R.JIVE.ind.scores.Y, xlab = "True Indiv 2 Scores", ylab = "ProJIVE Indiv 2 Scores", 
+     col = c(rep("orange",n), rep("green",n)),
+     sub = paste0("Chordal Norm = ", round(chord.norm.diff(IndivScore.Y, R.JIVE.ind.scores.Y), 3)))
+# plot(1,lwd=0,axes=F,xlab="",ylab="", "n")
+plot.new(); title("R.JIVE Results with \n R_J1^2=0.5")
+legend("left", paste("Comp.", 1:3), pch = 1, col  = c("orange", "green", "purple"),bty = "n" )
+plot(JntLd.X, WJ[[1]], xlab = "True Joint Loadings X", ylab = "R.JIVE Joint Loadings X", 
+     col = c(rep("orange",p1), rep("green",p1), rep("purple",p1)),  
+     sub = paste0("Chordal Norm = ", round(chord.norm.diff(JntLd.X, WJ[[1]]), 3)))
+plot(JntLd.Y, WJ[[2]], xlab = "True Joint Loadings Y", ylab = "R.JIVE Joint Loadings Y", 
+     col = c(rep("orange",p1), rep("green",p1), rep("purple",p1)),  
+     sub = paste0("Chordal Norm = ", round(chord.norm.diff(JntLd.Y, WJ[[2]]), 3)))
+plot(IndivLd.X, WI[[1]], xlab = "True Individual Loadings X", ylab = "R.JIVE Individual Loadings X", 
+     col = c(rep("orange",p1), rep("green",p2)), 
+     sub = paste0("Chordal Norm = ", round(chord.norm.diff(IndivLd.X, WI[[1]]), 3)))
+plot(IndivLd.Y, WI[[2]], xlab = "True Individual Loadings Y", ylab = "R.JIVE Individual Loadings Y", 
+     col = c(rep("orange",p1), rep("green",p2)), 
+     sub = paste0("Chordal Norm = ", round(chord.norm.diff(IndivLd.Y, WI[[2]]), 3)))
+layout(1)
+
+#############################################################################################################################
+##############################   Reverse VarEx proportions in Dataset to see if there is an issue  ##########################
+# JntVarEx1 = 0.05
+# JntVarEx2 = 0.5
+# 
+# #######################################################################
+# ###Construct Datasets
+# ToyDat = GenerateToyData(n = n, p1 = p1, p2 = p2, JntVarEx1 = JntVarEx1, JntVarEx2 = JntVarEx2, 
+#                          IndVarEx1 = IndVarEx1, IndVarEx2 =  IndVarEx2, jnt_rank = r.J,
+#                          equal.eig = F,ind_rank1 = r.I1, ind_rank2 = r.I2, JntVarAdj = T, SVD.plots = F,
+#                          Error = T, print.cor = F, Loads = "Rademacher", Scores = "Gaussian_Mixture")
+# ## Proportions of groups for mixture
+# blocks <- ToyDat[[2]]
+temp=blocks
+blocks=list(temp[[2]],temp[[1]])
+##Setup input parameters to use Gavin's EM code
+Y = do.call(cbind, blocks); P = c(p1, p2); Q = c(r.J,r.I1,r.I2)
+
+# Theta
+JntScores = ToyDat[['Scores']][['Joint']]
+IndivScore.X = ToyDat[['Scores']][["Indiv_2"]]
+IndivScore.Y = ToyDat[['Scores']][["Indiv_1"]]
+
+# WJ1 and WJ2
+JntLd.X = t(ToyDat[['Loadings']][["Joint_2"]])
+JntLd.Y = t(ToyDat[['Loadings']][["Joint_1"]])
+
+# WI1 and WI2
+IndivLd.X =t(ToyDat[['Loadings']][["Indiv_2"]])
+IndivLd.Y = t(ToyDat[['Loadings']][["Indiv_1"]])
+
+# Signal matrices
+JX = ToyDat[[1]]$J2
+JY = ToyDat[[1]]$J1
+IX = ToyDat[[1]]$I2
+IY = ToyDat[[1]]$I1
+
+# Noise Matrices
+EX = ToyDat[[1]]$E2
+EY = ToyDat[[1]]$E1
+
+# Total Signal matrices
+AX = JX + IX
+AY = JY + IY
+
+## Proportions of variation explained
+JVE.X = MatVar(JX)/MatVar(blocks[[2]])
+JVE.Y = MatVar(JY)/MatVar(blocks[[1]])
+
+IVE.X = MatVar(IX)/MatVar(blocks[[2]])
+IVE.Y = MatVar(IY)/MatVar(blocks[[1]])
+
+TotVE.X = MatVar((JX + IX))/MatVar(blocks[[2]])
+TotVE.Y = MatVar((JY + IY))/MatVar(blocks[[1]])
+
+##Looks like the variances are about equal to me ( +/- 10%)?
+# plot(apply((blocks[[1]] - AX), 2, sd))
+# plot(apply((blocks[[2]] - AY), 2, sd))
+
+#############################################
+############### ProJIVE  ####################
+# pdf(file = file.path(doc.dir, "InitialValueInvestigation.pdf"))
+PJIVE.res = ProJIVE_EM(Y=Y, P=P, Q=Q, diff.tol=1e-5, plots = FALSE, init.loads = "CJIVE")
+
+PJIVE.scores = PJIVE.res$SubjectScoreMatrix
+PJIVE.loads.X = PJIVE.res$LoadingMatrix[1:p1,-(sum(Q):(sum(Q[-3])+1))]
+PJIVE.loads.Y = PJIVE.res$LoadingMatrix[-(1:p1),-(r.J+1:r.I1)]
+
+layout(matrix(c(1:6,4,7,8),3, byrow = TRUE))
+plot(JntScores, PJIVE.scores[,1:r.J], xlab = "True Joint Scores", ylab = "ProJIVE Joint Scores", 
+     col = c(rep("orange",n), rep("green",n), rep("purple",n)), 
+     sub = paste0("Chordal Norm = ", round(chord.norm.diff(JntScores, PJIVE.scores[,1:r.J]), 3)))
+plot(IndivScore.X, PJIVE.scores[,r.J+(1:r.I1)], xlab = "True Indiv 1 Scores", ylab = "ProJIVE Indiv 1 Scores", 
+     col = c(rep("orange",n), rep("green",n)),
+     sub = paste0("Chordal Norm = ", round(chord.norm.diff(IndivScore.X, PJIVE.scores[,r.J+(1:r.I1)]), 3)))
+plot(IndivScore.Y, PJIVE.scores[,r.J+r.I1+(1:r.I2)], xlab = "True Indiv 2 Scores", ylab = "ProJIVE Indiv 2 Scores", 
+     col = c(rep("orange",n), rep("green",n)),
+     sub = paste0("Chordal Norm = ", round(chord.norm.diff(IndivScore.Y, PJIVE.scores[,r.J+r.I1+(1:r.I2)]), 3)))
+plot.new(); title("ProJIVE Results with \n R_J1^2=0.05")
+legend("left", paste("Comp.", 1:3), pch = 1, col  = c("orange", "green", "purple"),bty = "n" )
+plot(JntLd.X, PJIVE.loads.X[,1:r.J], xlab = "True Joint Loadings X", ylab = "ProJIVE Joint Loadings X", 
+     col = c(rep("orange",p1), rep("green",p1), rep("purple",p1)),  
+     sub = paste0("Chordal Norm = ", round(chord.norm.diff(JntLd.X, PJIVE.loads.X[,1:r.J]), 3)))
+plot(JntLd.Y, PJIVE.loads.Y[,1:r.J], xlab = "True Joint Loadings Y", ylab = "ProJIVE Joint Loadings Y", 
+     col = c(rep("orange",p1), rep("green",p1), rep("purple",p1)),  
+     sub = paste0("Chordal Norm = ", round(chord.norm.diff(JntLd.Y, PJIVE.loads.Y[,1:r.J]), 3)))
+plot(IndivLd.X, PJIVE.loads.X[,-(1:r.J)], xlab = "True Individual Loadings X", ylab = "ProJIVE Individual Loadings X", 
+     col = c(rep("orange",p1), rep("green",p2)), 
+     sub = paste0("Chordal Norm = ", round(chord.norm.diff(IndivLd.X, PJIVE.loads.X[,-(1:r.J)]), 3)))
+plot(IndivLd.Y, PJIVE.loads.Y[,-(1:r.J)], xlab = "True Individual Loadings Y", ylab = "ProJIVE Individual Loadings Y", 
+     col = c(rep("orange",p1), rep("green",p2)), 
+     sub = paste0("Chordal Norm = ", round(chord.norm.diff(IndivLd.Y, PJIVE.loads.Y[,-(1:r.J)]), 3)))
+layout(1)
+
+
+########################################
+##############  R.JIVE   ###############
+blocks.t = lapply(blocks, t)
+R.JIVE.res = jive(blocks.t, rankJ = r.J, rankA = true_signal_ranks - r.J, method = "given")
+
+# R.JIVE signal matrix estimates
+J.hat = lapply(R.JIVE.res$joint, svd, nu = r.J, nv = r.J)
+I.hat = lapply(R.JIVE.res$individual, svd, nu = r.I1, r.I2)
+
+# R.JIVE Subject Scores
+R.JIVE.jnt.scores = svd(do.call(rbind, R.JIVE.res$joint), nu = r.J, nv = r.J)$v
+R.JIVE.ind.scores.X = I.hat[[1]][['v']]
+R.JIVE.ind.scores.Y = I.hat[[2]][['v']]
+
+# R.JIVE loading estimates
+WJ = lapply(J.hat, function(x) x[['u']])
+WI = lapply(I.hat, function(x) x[['u']])
+
+# Plots of R.JIVE estimates against true counterparts
+# layout(matrix(c(1,1,1:7), 3, byrow = TRUE), heights = c(.1, 0.4, 0.4))
+# plot(1, type = "n", axes=FALSE, xlab="", ylab=""); title(sub = "temp")
+layout(matrix(c(1:6,4,7,8),3, byrow = TRUE))
+plot(JntScores, R.JIVE.jnt.scores, xlab = "True Joint Scores",ylab = "R.JIVE Joint Scores", 
+     col = c(rep("orange",n), rep("green",n), rep("purple",n)),  
+     sub = paste0("Chordal Norm = ", round(chord.norm.diff(JntScores, R.JIVE.jnt.scores), 3)))
+plot(IndivScore.X, R.JIVE.ind.scores.X, xlab = "True Indiv 1 Scores", ylab = "ProJIVE Indiv 1 Scores", 
+     col = c(rep("orange",n), rep("green",n)),
+     sub = paste0("Chordal Norm = ", round(chord.norm.diff(IndivScore.X, R.JIVE.ind.scores.X), 3)))
+plot(IndivScore.Y, R.JIVE.ind.scores.Y, xlab = "True Indiv 2 Scores", ylab = "ProJIVE Indiv 2 Scores", 
+     col = c(rep("orange",n), rep("green",n)),
+     sub = paste0("Chordal Norm = ", round(chord.norm.diff(IndivScore.Y, R.JIVE.ind.scores.Y), 3)))
+# plot(1,lwd=0,axes=F,xlab="",ylab="", "n")
+plot.new(); title("R.JIVE Results with \n R_J1^2=0.05")
+legend("left", paste("Comp.", 1:3), pch = 1, col  = c("orange", "green", "purple"),bty = "n" )
+plot(JntLd.X, WJ[[1]], xlab = "True Joint Loadings X", ylab = "R.JIVE Joint Loadings X", 
+     col = c(rep("orange",p1), rep("green",p1), rep("purple",p1)),  
+     sub = paste0("Chordal Norm = ", round(chord.norm.diff(JntLd.X, WJ[[1]]), 3)))
+plot(JntLd.Y, WJ[[2]], xlab = "True Joint Loadings Y", ylab = "R.JIVE Joint Loadings Y", 
+     col = c(rep("orange",p1), rep("green",p1), rep("purple",p1)),  
+     sub = paste0("Chordal Norm = ", round(chord.norm.diff(JntLd.Y, WJ[[2]]), 3)))
+plot(IndivLd.X, WI[[1]], xlab = "True Individual Loadings X", ylab = "R.JIVE Individual Loadings X", 
+     col = c(rep("orange",p1), rep("green",p2)), 
+     sub = paste0("Chordal Norm = ", round(chord.norm.diff(IndivLd.X, WI[[1]]), 3)))
+plot(IndivLd.Y, WI[[2]], xlab = "True Individual Loadings Y", ylab = "R.JIVE Individual Loadings Y", 
+     col = c(rep("orange",p1), rep("green",p2)), 
+     sub = paste0("Chordal Norm = ", round(chord.norm.diff(IndivLd.Y, WI[[2]]), 3)))
+layout(1)

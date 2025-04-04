@@ -1,0 +1,116 @@
+---
+title: "Problematic Identifiability Example"
+author: "Benjamin Risk"
+date: "4/15/2022"
+output: html_document
+---
+
+
+Here, we present an example that shows issues that arise when 
+$W_{Jk}$ and $W_{Ik}$ are not linearly independent:
+
+   i) the joint versus individual variation is not identifiable, 
+   
+   ii) the individual components are not identifiable,
+   
+   iii) the number of individual components is not identifiable. 
+
+To examine the invariance of the likelihood, it suffices to consider the covariance matrices. Recall $Cov(x_{ik}) = W_{Jk}W_{Jk}^\top + W_{Ik}W_{Ik}^\top + \sigma_k^2 I$. We can ignored $\sigma_k^2$ in the account that follows. 
+
+# Generate loadings
+```{r}
+WJ1 = diag(5)[,c(1,2)]
+WI1 = diag(5)[,c(3,4)]
+```
+
+
+For dataset 2, we will create a non-zero subspace in the  $col(W_{J2}) \cap col(W_{I2})$:
+
+```{r}
+WJ2 = diag(5)[,c(1,2)]
+WI2 = diag(5)[,c(1,3)]
+```
+
+Consider the setting described in theorem 1. Let $T_2 = (T_1^{-1})^\top$. In order for the individual components of the alternative decomposition to be well-defined, their covariance matrix $W_{Ik}W_{Ik}^\top + W_{Jk}(I - T_k T_k^\top)W_{Jk}^\top$ needs to be positive semidefinite. If $col(W_{J2}) \cap col(W_{I2}) \ne \{0\}$, the eigenvalues of $W_{J2}(I-T_2 T_2^\top)W_{J2}^\top$ can be negative if the eigenvalue(s) of the matched directions in $W_{I2}$ are larger than the corresponding eigenvalue(s) of $W_{J2}(I - T_2 T_2^\top) W_{J2}^\top$. 
+
+Then such a setting in turn allows a non-negligible contribution of $W_{J1}$ to the new individual subspace $W_{I1}^*$ when $I - T_1 T_1^\top$ is positive semidefinite.
+```{r}
+T1 = diag(c(sqrt(0.5+0.1),1)) 
+T2 = t(solve(T1))
+```
+
+Construct the new joint loadings matrices:
+
+```{r}
+WJ1star = WJ1%*%T1
+WJ2star = WJ2%*%T2
+```
+
+Construct the new individual components covariance matrix:
+
+```{r}
+covWI1star = WI1%*%t(WI1) + WJ1%*%(diag(ncol(WJ1))-T1%*%t(T1))%*%t(WJ1)
+eig.WI1star = eigen(covWI1star)
+#note no negative eigenvalues:
+eig.WI1star$values
+(rI1.star = sum(eig.WI1star$values>1e-8))
+WI1star = eig.WI1star$vectors[,1:rI1.star]%*%diag(sqrt(eig.WI1star$values)[1:rI1.star])
+```
+
+We now have THREE non-zero eigenvalues, i.e., the number of individual components is not identifiable. This occurs because the overlap in the column spaces of $W_{J2}$ and $W_{I2}$ allows $(I - T_2 T_2^\top)$ to have negative eigenvalues ($T_2 = (T_1^{-1})^\top$), and since $I - T_1 T_1^\top$ is positive definite, $W_{J1}(I - T_1 T_1^\top) W_{J1}^\top$ has a non-negligible contribution of $W_{J1}$. 
+
+We can make the situation even worse by rotating these components:
+```{r}
+Omat = svd(matrix(rnorm(rI1.star^2),rI1.star))$u
+WI1star= WI1star%*%Omat
+WI1star
+```
+
+Next, define the new loadings of the individual components of dataset 2:
+```{r}
+covWI2star = WI2%*%t(WI2) + WJ2%*%(diag(ncol(WJ2))-T2%*%t(T2))%*%t(WJ2)
+eig.WI2star = eigen(covWI2star)
+# check all positive:
+eig.WI2star$values
+WI2star = eig.WI2star$vectors[,1:2]%*%diag(sqrt(eig.WI2star$values)[1:2])
+```
+
+
+Finally, check covariance matrices are equivalent, which implies the likelihoods are equivalent:
+
+```{r}
+cov1 = WJ1%*%t(WJ1)+WI1%*%t(WI1)
+cov2 = WJ2%*%t(WJ2)+WI2%*%t(WI2)
+
+cov1star = WJ1star%*%t(WJ1star)+WI1star%*%t(WI1star)
+cov2star = WJ2star%*%t(WJ2star)+WI2star%*%t(WI2star)
+
+norm(cov1-cov1star,type = 'F')
+norm(cov2-cov2star,type = 'F')
+```
+
+This demonstrates a ProJIVE model in which the joint versus individual variation is not identifiable, nor are the individual components identifiable. 
+
+# Identifiability when $W_{Jk}$ and $W_{Ik}$ are linearly independent
+
+When $col(W_{Jk}) \cap col(W_{Ik}) = \{0\}$, any $T_1 \notin \mathcal{O}$ will result in a negative eigenvalue for the covariance of the individual components, which is not a valid decomposition. It turns out that assuming linear independence leads to identifiability up to orthogonal transformation. 
+
+Here is an example to see how the negative eigenvalues can arise, which implies that the $T_1$ matrix does not satisfy the constraints $W_{Ik}W_{Ik}^\top + W_{Jk}(I - T_k T_k^\top)W_{Jk}^\top \succeq 0$ for  $T_2 = (T_1^{-1})^\top$. .
+```{r}
+WJ1 = matrix(c(1,1,1,0,0),ncol=1)
+WI1 = matrix(c(1,2,0,0,0),ncol=1)
+
+WJ2 = matrix(c(0,0,0,1,0),ncol=1)
+WI2 = matrix(c(0,0,0,0,1),ncol=1)
+
+T1 = 1.01
+T2 = 1/T1
+
+WJ1star = WJ1*T1
+WJ2star = WJ2*T2
+
+# individual components covariance matrix:
+covWI1star = WI1%*%t(WI1) + WJ1%*%(diag(ncol(WJ1))-T1%*%t(T1))%*%t(WJ1)
+# check that it is positive semidefinite:
+eigen(covWI1star)$values
+```

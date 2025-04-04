@@ -1,0 +1,25 @@
+#nautilus
+for(j in 1:1000)
+{
+  
+  script=NULL
+  script[1]=sprintf("#PBS -N JIVE1")
+  script[2] ="#PBS -l procs=1,mem=4gb\n
+  #PBS -l walltime=12:00:00\n
+  #PBS -d /rsrch2/biostatistics/hshu/paper1/simulation1/setup1_paper_revision2\n
+  #PBS -o /rsrch2/biostatistics/hshu/paper1/simulation1/setup1_paper_revision2/output\n
+  #PBS -e /rsrch2/biostatistics/hshu/paper1/simulation1/setup1_paper_revision2/output\n"
+  
+  script[3] = "cat\n"  
+  
+  script[4] = "module load R/3.3.3-shlib\n" 
+  
+  script[5] = sprintf("Rscript simulation1_JIVE_and_RJIVE.R %d",j)
+  
+  write.table(script,file = sprintf("/rsrch2/biostatistics/hshu/paper1/simulation1/setup1_paper_revision2/jobs/job_simulation%d.pbs",j),row.names=F,col.names = F,quote=F)
+  
+  system(sprintf("msub < /rsrch2/biostatistics/hshu/paper1/simulation1/setup1_paper_revision2/jobs/job_simulation%d.pbs",j),intern=F)
+  
+  
+  
+}

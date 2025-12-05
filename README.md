@@ -2,7 +2,7 @@
 
 ## Install instructions
 ```
-install.packages('devtools::git
+devtools::install_github('github.com/thebrisklab/ProJIVE')
 ```
 
 ## Quick example using simulated data

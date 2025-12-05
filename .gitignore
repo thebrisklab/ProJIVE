@@ -1,4 +1,7 @@
+# Merged .gitignore
+
 .Rproj.user
+inst/doc
 .Rhistory
 .RData
 .Ruserdata

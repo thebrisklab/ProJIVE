@@ -8,31 +8,31 @@
 ###       Change the location of 'prog.dir' to the location where you have saved the file 'Functions_to_SimulateData.R'
 # 21JUN22024: A run of this vignette seems togive similar results fro simulations
 #             conducted between 07 JUN 2024 and 17 JUN 20204.These results are not
-#             as good as previous iterations of this vignette. May try to modify 
+#             as good as previous iterations of this vignette. May try to modify
 #             simulation settings to achieve better results
-# 24JUN22024: Simulations that use a mixture of Gaussian distributions for the  
-#             scores violate the independence assumption across components of the 
-#             joint score subspace. However, using binomial scores, which retain 
+# 24JUN22024: Simulations that use a mixture of Gaussian distributions for the
+#             scores violate the independence assumption across components of the
+#             joint score subspace. However, using binomial scores, which retain
 #             independence, does not seem to improve results
 ################################################################################
-# install.packages("ProJIVE_0.0.0.9000.tar.gz", repos = NULL, type = "source")
+# devtools::install.packages("ProJIVE_0.0.0.9000.tar.gz", repos = NULL, type = "source")
 library(singR); library(CJIVE); library(reticulate); library(cowplot);
 library(r.jive); library(ProJIVE)
 
 #Simulation parameters
 rep_number = 1
-r.J = 3
+r.J = 1
 r.I1 = 2
 r.I2 = 2
 #outdir = args[2]
 n = 200
 p1 = 20
-p2 = 100 ####Note that p1 and p2 differ when compared to values used in simulations
-JntVarEx1 = 0.15
-JntVarEx2 = 0.15
+p2 = 200 ####Note that p1 and p2 differ when compared to values used in simulations
+JntVarEx1 = 0.1
+JntVarEx2 = 0.1
 #files = list.files(outdir)
-IndVarEx1 = 0.15
-IndVarEx2 = 0.15
+IndVarEx1 = 0.25
+IndVarEx2 = 0.25
 nparams = p1*(r.J+r.I1)+p2*(r.J+r.I2)+2
 prop = n/nparams
 
@@ -59,7 +59,7 @@ Loads = list(list(t(JntLoad.X), t(JntLoad.Y)), list(t(IndLoad.X), t(IndLoad.Y)))
 true_signal_ranks = r.J + c(r.I1,r.I2)                          ##true ranks of overall signals
 ToyDat = ProJIVE::GenerateToyData(n = n, p = c(p1, p2), JntVarEx = c(JntVarEx1, JntVarEx2), #mix.probs = c(.5,.5),
                          equal.eig = F, IndVarEx = c(IndVarEx1, IndVarEx2),
-                         jnt_rank = r.J, ind_ranks = c(r.I1, r.I2), JntVarAdj = F, 
+                         jnt_rank = r.J, ind_ranks = c(r.I1, r.I2), JntVarAdj = F,
                          SVD.plots = T, Error = T, print.cor = TRUE, Loads = "Gaussian",
                          Scores = "Gaussian",
                          # error.variances = c(1,1),
@@ -132,7 +132,7 @@ true.load.dat.X = data.frame(Name = factor(1:(p1*(r.J+r.I1)),
                              Loading = abs(c(cbind(t(ToyDat$Loadings$Joint[[1]]),
                                                    t(ToyDat$Loadings$Indiv[[1]])))),
                              Upper = 0,
-                             Lower = 0, 
+                             Lower = 0,
                              Type = factor(2,levels = 1:2, labels = c("Estimate", "Truth")))
 true.load.dat.Y = data.frame(Name = factor(1:(p2*(r.J+r.I2)),
                                            labels =  c(paste0(paste0("Y", 1:p2), "_J",
@@ -142,7 +142,7 @@ true.load.dat.Y = data.frame(Name = factor(1:(p2*(r.J+r.I2)),
                              Loading = abs(c(cbind(t(ToyDat$Loadings$Joint[[2]]),
                                                    t(ToyDat$Loadings$Indiv[[2]])))),
                              Upper = 0,
-                             Lower = 0, 
+                             Lower = 0,
                              Type = factor(2,levels = 1:2, labels = c("Estimate", "Truth")))
 true.load.dat.X$ScaledLoading = true.load.dat.X$Loading/sqrt(sum(true.load.dat.X$Loading^2))
 true.load.dat.Y$ScaledLoading = true.load.dat.Y$Loading/sqrt(sum(true.load.dat.Y$Loading^2))
@@ -180,40 +180,40 @@ PJIVE.loads.Y = PJIVE.loads.Y.unscaled #%*%diag(score.SDs[c(1:r.J, (r.J+r.I1)+(1
 PJIVE.err.var = PJIVE.res.RJM$ErrorVariances
 summary(PJIVE.err.var[[2]])
 
-## Since the model calls for the latent scores to have variance = 1, we should 
+## Since the model calls for the latent scores to have variance = 1, we should
 ##    scale the estimated scores by the inverse of their standard deviation
 ##    and scale the loadings by the same scalar
 
 layout(matrix(c(1:6,4,7,8),3, byrow = TRUE))
-plot(JntScores, PJIVE.scores[,1:r.J, drop = FALSE], xlab = "True Joint Scores", ylab = "ProJIVE Joint Scores", 
-     col = c(rep("orange",n), rep("green",n), rep("purple",n)), 
+plot(JntScores, PJIVE.scores[,1:r.J, drop = FALSE], xlab = "True Joint Scores", ylab = "ProJIVE Joint Scores",
+     col = c(rep("orange",n), rep("green",n), rep("purple",n)),
      sub = paste0("Chordal Norm = ", round(chord.norm.diff(JntScores, PJIVE.scores[,1:r.J, drop = FALSE]), 3), ":",
                   " PMSE = ", round(pmse(S1 = JntScores, S2 = PJIVE.scores[,-(1:r.J), drop = FALSE], standardize = TRUE), 3)))
-plot(IndivScore.X, PJIVE.scores[,r.J+(1:r.I1), drop = FALSE], xlab = "True Indiv X1 Scores", ylab = "ProJIVE Indiv X1 Scores", 
+plot(IndivScore.X, PJIVE.scores[,r.J+(1:r.I1), drop = FALSE], xlab = "True Indiv X1 Scores", ylab = "ProJIVE Indiv X1 Scores",
      col = c(rep("orange",n), rep("green",n)),
      sub = paste0("Chordal Norm = ", round(chord.norm.diff(IndivScore.X, PJIVE.scores[,r.J+(1:r.I1)]), 3), ":",
                   " PMSE = ", round(pmse(S1 = IndivScore.X, S2 = PJIVE.scores[,r.J+(1:r.I1), drop = FALSE], standardize = TRUE), 3)))
-plot(IndivScore.Y, PJIVE.scores[,(r.J+r.I1)+(1:r.I2)], xlab = "True Indiv X2 Scores", ylab = "ProJIVE Indiv X2 Scores", 
+plot(IndivScore.Y, PJIVE.scores[,(r.J+r.I1)+(1:r.I2)], xlab = "True Indiv X2 Scores", ylab = "ProJIVE Indiv X2 Scores",
      col = c(rep("orange",n), rep("green",n)),
      sub = paste0("Chordal Norm = ", round(chord.norm.diff(IndivScore.Y, PJIVE.scores[,(r.J+r.I1)+(1:r.I2)]), 3), ":",
                   " PMSE = ", round(pmse(S1 = IndivScore.Y, S2 = PJIVE.scores[,(r.J+r.I1)+(1:r.I2)], standardize = TRUE), 3)))
-plot.new(); title("ProJIVE Results \n (loadings and error variance \ninitialized  from True Values)", 
+plot.new(); title("ProJIVE Results \n (loadings and error variance \ninitialized  from True Values)",
                   sub = bquote(sigma["1"]*"="*.(round(mean(PJIVE.err.var[[1]]),2))*"; "*sigma["2"]*"="*.(round(mean(PJIVE.err.var[[2]]),2))))
 legend("left", paste("Comp.", 1:r.J), pch = 1, col  = c("orange", "green", "purple")[1:r.J], bty = "n" )
-plot(JntLd.X, PJIVE.loads.X[,1:r.J, drop = FALSE], xlab = "True Joint Loadings X1", ylab = "ProJIVE Joint Loadings X1", 
-     col = c(rep("orange",p1), rep("green",p1), rep("purple",p1)),  
+plot(JntLd.X, PJIVE.loads.X[,1:r.J, drop = FALSE], xlab = "True Joint Loadings X1", ylab = "ProJIVE Joint Loadings X1",
+     col = c(rep("orange",p1), rep("green",p1), rep("purple",p1)),
      sub = paste0("Chordal Norm = ", round(chord.norm.diff(JntLd.X, PJIVE.loads.X[,1:r.J, drop = FALSE]), 3), ":",
                   " PMSE = ", round(pmse(S1 = JntLd.X, S2 = PJIVE.loads.X[,1:r.J, drop = FALSE], standardize = TRUE), 3)))
-plot(JntLd.Y, PJIVE.loads.Y[,1:r.J, drop = FALSE], xlab = "True Joint Loadings X2", ylab = "ProJIVE Joint Loadings X2", 
-     col = c(rep("orange",p2), rep("green",p2), rep("purple",p2)),  
+plot(JntLd.Y, PJIVE.loads.Y[,1:r.J, drop = FALSE], xlab = "True Joint Loadings X2", ylab = "ProJIVE Joint Loadings X2",
+     col = c(rep("orange",p2), rep("green",p2), rep("purple",p2)),
      sub = paste0("Chordal Norm = ", round(chord.norm.diff(JntLd.Y, PJIVE.loads.Y[,1:r.J, drop = FALSE]), 3), ":",
                   " PMSE = ", round(pmse(S1 = JntLd.Y, S2 = PJIVE.loads.Y[,1:r.J, drop = FALSE], standardize = TRUE), 3)))
-plot(IndivLd.X, PJIVE.loads.X[,-(1:r.J)], xlab = "True Individual Loadings X", ylab = "ProJIVE Individual Loadings X", 
-     col = c(rep("orange",p1), rep("green",p1)), 
+plot(IndivLd.X, PJIVE.loads.X[,-(1:r.J)], xlab = "True Individual Loadings X", ylab = "ProJIVE Individual Loadings X",
+     col = c(rep("orange",p1), rep("green",p1)),
      sub = paste0("Chordal Norm = ", round(chord.norm.diff(IndivLd.X, PJIVE.loads.X[,-(1:r.J)]), 3), ":",
                   " PMSE = ", round(pmse(S1 = IndivLd.X, S2 = PJIVE.loads.X[,-(1:r.J)], standardize = TRUE), 3)))
-plot(IndivLd.Y, PJIVE.loads.Y[,-(1:r.J)], xlab = "True Individual Loadings X2", ylab = "ProJIVE Individual Loadings X2", 
-     col = c(rep("orange",p2), rep("green",p2)), 
+plot(IndivLd.Y, PJIVE.loads.Y[,-(1:r.J)], xlab = "True Individual Loadings X2", ylab = "ProJIVE Individual Loadings X2",
+     col = c(rep("orange",p2), rep("green",p2)),
      sub = paste0("Chordal Norm = ", round(chord.norm.diff(IndivLd.Y, PJIVE.loads.Y[,-(1:r.J)]), 3), ":",
                   " PMSE = ", round(pmse(S1 = IndivLd.Y, S2 = PJIVE.loads.Y[,-(1:r.J)], standardize = TRUE), 3)))
 layout(1)
@@ -241,7 +241,7 @@ M.angs.svd = svd(M.angs)
 real.angs = acos(M.angs.svd$d)*180/pi
 
 plot(angs, 1-ang.probs, xlim = c(0,90), col = 'blue', pch = '+',
-     xlab = "Principal Angle", ylab = "Probability", 
+     xlab = "Principal Angle", ylab = "Probability",
      main = paste0("X1:", r.J+r.I1, " & X2:", r.J+r.I2),
      sub = "True ranks")
 lines(angs, 1-ang.probs, xlim = c(0,90), col = 'blue')
@@ -273,7 +273,7 @@ M.angs.svd = svd(M.angs)
 real.angs = acos(M.angs.svd$d)*180/pi
 
 plot(angs, 1-ang.probs, xlim = c(0,90), col = 'blue', pch = '+',
-     xlab = "Principal Angle", ylab = "Probability", 
+     xlab = "Principal Angle", ylab = "Probability",
      main = paste0("X1:", r.J+r.I1, " & X2:", r.J+r.I2-1),
      sub = "rank(X2) under")
 lines(angs, 1-ang.probs, xlim = c(0,90), col = 'blue')
@@ -305,7 +305,7 @@ M.angs.svd = svd(M.angs)
 real.angs = acos(M.angs.svd$d)*180/pi
 
 plot(angs, 1-ang.probs, xlim = c(0,90), col = 'blue', pch = '+',
-     xlab = "Principal Angle", ylab = "Probability", 
+     xlab = "Principal Angle", ylab = "Probability",
      main = paste0("X1:", r.J+r.I1+1, " & X2:", r.J+r.I2),
      sub = "rank(X1) over")
 lines(angs, 1-ang.probs, xlim = c(0,90), col = 'blue')
@@ -337,7 +337,7 @@ M.angs.svd = svd(M.angs)
 real.angs = acos(M.angs.svd$d)*180/pi
 
 plot(angs, 1-ang.probs, xlim = c(0,90), col = 'blue', pch = '+',
-     xlab = "Principal Angle", ylab = "Probability", 
+     xlab = "Principal Angle", ylab = "Probability",
      main = paste0("X1:", r.J+r.I1+1, " & X2:", r.J+r.I2+1),
      sub = "Both over")
 lines(angs, 1-ang.probs, xlim = c(0,90), col = 'blue')

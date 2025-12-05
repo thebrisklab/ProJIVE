@@ -2,7 +2,7 @@
 % Please edit documentation in R/ProJIVE.R
 \name{ProJIVE}
 \alias{ProJIVE}
-\title{Wrapper function to conduct ProJIVE analyses with options for multiple initial loadings}
+\title{Wrapper function to conduct ProJIVE analyses (w option for multiple initial values for loadings), and calculate asymptotic variance}
 \usage{
 ProJIVE(
   Y,
@@ -16,8 +16,8 @@ ProJIVE(
   init.loads = NULL,
   center = FALSE,
   num.starts = 5,
-  return.all.starts = FALSE,
-  isotropic.error = TRUE
+  AsymVar = FALSE,
+  return.all.starts = FALSE
 )
 }
 \arguments{
@@ -43,22 +43,23 @@ ProJIVE(
 
 \item{num.starts}{Integer. The number of different initializations (default = 5).}
 
-\item{return.all.starts}{Logical (TRUE/FALSE): If TRUE, returns results from all initializations; if FALSE, return only the best result (default: FALSE).}
+\item{AsymVar}{Logical (TRUE/FALSE): If TRUE, computes the asymptotic variance using the observed empirical information matrix (default = FALSE).}
 
-\item{isotropic.error}{Logical (TRUE/FALSE) Indicator of whether to assume isotropic error, i.e., one scalar parameter for error variance per data set, or non-isotropic error, i.e., P_k scalar parameters for error variance in data set k (default = TRUE)}
+\item{return.all.starts}{Logical (TRUE/FALSE): If TRUE, returns results from all initializations; if FALSE, return only the best result (default: FALSE).}
 }
 \value{
 A list containing:
 - ProJIVE_Results: The best ProJIVE estimation result (or all results if "return.all.starts = TRUE").
 - ObservedDataLogLikelihood: The observed log-likelihood for each initialization.
+- ObservedEmpiricalInfo (when "AsymVar = TRUE"): The observed empirical information matrix for asymptotic variance estimation.
 }
 \description{
-Wrapper function to conduct ProJIVE analyses with options for multiple initial loadings
+Wrapper function to conduct ProJIVE analyses (w option for multiple initial values for loadings), and calculate asymptotic variance
 }
 \examples{
-Y <- matrix(rnorm(200), 20, 10)
+Y <- matrix(rnorm(100), 20, 5)
 P <- c(5, 5)
-Q <- c(1, 2, 2)
-result <- ProJIVE_EM(Y, P, Q)
+Q <- c(2, 3)
+result <- ProJIVE(Y, P, Q)
 str(result)
 }

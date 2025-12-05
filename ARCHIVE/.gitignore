@@ -1,0 +1,10 @@
+# Merged .gitignore
+
+.Rproj.user
+inst/doc
+.Rhistory
+.RData
+.Ruserdata
+PJIVE_ToyExample_files
+Rplot.tiff
+Rplot01.tiff

@@ -67,6 +67,7 @@ Contains four main elements:
 Generates K Simulated Datasets that follow JIVE Model using binary subject scores
 }
 \examples{
+rep_number = 1
 r.J = 3
 r.I1 = 2
 r.I2 = 2
@@ -77,6 +78,12 @@ JntVarEx1 = 0.1
 JntVarEx2 = 0.1
 IndVarEx1 = 0.25
 IndVarEx2 = 0.25
-ToyDat = GenerateToyData(n = n, p = c(p1, p2), JntVarEx = c(0.1, 0.1),
-IndVarEx = c(0.25, 0.25), jnt_rank = r.J, ind_ranks = c(r.I1, r.I2))
+nparams = p1*(r.J+r.I1)+p2*(r.J+r.I2)+2
+prop = n/nparams
+JntScores = matrix(rdunif(n*r.J, 0, 5), nrow = n, ncol = r.J)
+IndivScore.X = matrix(rweibull(n*r.I1, shape = 1), nrow = n)
+IndivScore.Y = matrix(rhnorm(n*r.I2), nrow = n)
+Scores = cbind(JntScores, IndivScore.X, IndivScore.Y)
+true_signal_ranks = r.J + c(r.I1,r.I2)
+ToyDat = GenerateToyData(n = n, p = c(p1, p2), JntVarEx = c(JntVarEx1, JntVarEx2), equal.eig = F, IndVarEx = c(IndVarEx1, IndVarEx2), jnt_rank = r.J, ind_ranks = c(r.I1, r.I2), JntVarAdj = F, SVD.plots = F, Error = T, print.cor = TRUE, Loads = "Rademacher", Scores = "Gaussian_Mixture", error.variances = c(1,1))
 }

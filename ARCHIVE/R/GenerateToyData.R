@@ -25,6 +25,7 @@
 #' @export
 #'
 #' @examples
+#'rep_number = 1
 #'r.J = 3
 #'r.I1 = 2
 #'r.I2 = 2
@@ -35,8 +36,14 @@
 #'JntVarEx2 = 0.1
 #'IndVarEx1 = 0.25
 #'IndVarEx2 = 0.25
-#'ToyDat = GenerateToyData(n = n, p = c(p1, p2), JntVarEx = c(0.1, 0.1),
-#'IndVarEx = c(0.25, 0.25), jnt_rank = r.J, ind_ranks = c(r.I1, r.I2))
+#'nparams = p1*(r.J+r.I1)+p2*(r.J+r.I2)+2
+#'prop = n/nparams
+#'JntScores = matrix(rdunif(n*r.J, 0, 5), nrow = n, ncol = r.J)
+#'IndivScore.X = matrix(rweibull(n*r.I1, shape = 1), nrow = n)
+#'IndivScore.Y = matrix(rhnorm(n*r.I2), nrow = n)
+#'Scores = cbind(JntScores, IndivScore.X, IndivScore.Y)
+#'true_signal_ranks = r.J + c(r.I1,r.I2)
+#'ToyDat = GenerateToyData(n = n, p = c(p1, p2), JntVarEx = c(JntVarEx1, JntVarEx2), equal.eig = F, IndVarEx = c(IndVarEx1, IndVarEx2), jnt_rank = r.J, ind_ranks = c(r.I1, r.I2), JntVarAdj = F, SVD.plots = F, Error = T, print.cor = TRUE, Loads = "Rademacher", Scores = "Gaussian_Mixture", error.variances = c(1,1))
 GenerateToyData <- function(n, p, JntVarEx, IndVarEx, jnt_rank = 1, equal.eig = FALSE, ind_ranks, JntVarAdj = TRUE, mix.probs = NULL,
                             SVD.plots = TRUE, Error = TRUE, print.cor = TRUE, Loads = "Rademacher", Scores = "Gaussian_Mixture",
                             error.variances = NULL){
@@ -52,9 +59,9 @@ GenerateToyData <- function(n, p, JntVarEx, IndVarEx, jnt_rank = 1, equal.eig = 
     JntScores = Scores[,1:r.J, drop = FALSE]
     IndivScores = Scores[,-(1:r.J), drop = FALSE]
   } else if(Scores=="Binomial"){
-    JntScores = matrix(stats::rbinom(n*r.J, size=1, prob=0.2), nrow = n, ncol = r.J)
+    JntScores = matrix(MCMCpack::rbinom(n*r.J, size=1, prob=0.2), nrow = n, ncol = r.J)
 
-    b = stats::rbinom(n*sum(r.I), size=1, prob=0.4)
+    b = MCMCpack::rbinom(n*sum(r.I), size=1, prob=0.4)
     b = 1 - 2*b
     IndivScores = matrix(b, nrow = n, ncol = sum(r.I))
   } else if (Scores=="Gaussian_Mixture"){
@@ -67,17 +74,14 @@ GenerateToyData <- function(n, p, JntVarEx, IndVarEx, jnt_rank = 1, equal.eig = 
       group.means = c(-4*(n.vals:1),0,4*(1:n.vals))
     }
     JointScores.groups = list()
-    for(l in 1:length(mix.probs)){
-      JointScores.groups[[l]] =
-        matrix(stats::rnorm(n*mix.probs[l]*r.J, mean = group.means[l]),
-               ncol = r.J)}
+    for(l in 1:length(mix.probs)){JointScores.groups[[l]] = matrix(rnorm(n*mix.probs[l]*r.J, mean = group.means[l]), ncol = r.J)}
     JntScores = do.call(rbind, JointScores.groups)
-    IndivScores = matrix(stats::rnorm(n*sum(r.I)), nrow = n, ncol = sum(r.I))
+    IndivScores = matrix(rnorm(n*sum(r.I)), nrow = n, ncol = sum(r.I))
   } else if(Scores=="Gaussian"){
-    JntScores = matrix(stats::rnorm(n*r.J), ncol = r.J)
-    IndivScores = matrix(stats::rnorm(n*sum(r.I)), nrow = n, ncol = sum(r.I))
+    JntScores = matrix(rnorm(n*r.J), ncol = r.J)
+    IndivScores = matrix(rnorm(n*sum(r.I)), nrow = n, ncol = sum(r.I))
   } else if (is.numeric(Scores)){
-    if(nrow(Scores == n) & ncol(Scores) == r.J+sum(r.I)){
+    if(nrow(Scores == n) & ncol(Scores = r.J+sum(r.I))){
       JntScores = Scores[,1:r.J]
       IndivScores = Scores[,-(1:r.J)]
     } else{
@@ -96,10 +100,7 @@ GenerateToyData <- function(n, p, JntVarEx, IndVarEx, jnt_rank = 1, equal.eig = 
   }
   colnames(IndivScores) = IndivScores.names
 
-  if(print.cor){
-    cat("The correlation between subject scores is given by")
-    print(round(stats::cor(cbind(JntScores, IndivScores)),4))
-    }
+  if(print.cor){cat("The correlation between subject scores is given by"); print(round(cor(cbind(JntScores, IndivScores)),4))}
 
   Jnt.Loads.All = list()
   Indiv.Loads.All = list()
@@ -108,25 +109,22 @@ GenerateToyData <- function(n, p, JntVarEx, IndVarEx, jnt_rank = 1, equal.eig = 
   Sig.Mats =  Data.Mats = list()
   temp.fcn = function(x){x[sample(round(length(x)/2))] = 1; x}
 
-
   if(is.null(error.variances)){
     error.variances = rep(1,K)
   } else if(is.numeric(error.variances) & length(error.variances) != K){
-    cat("The parameter 'error.variances' can be entered as 1) a numeric vector with the same length as 'p' (homoscedastic option) or 2) a list of length 'p' whose kth entry is a numeric vector of length 'p_k'.\n")
-  } else if(is.list(error.variances) & length(error.variances) != K){
-    cat("The parameter 'error.variances' can be entered as 1) a numeric vector with the same length as 'p' (homoscedastic option) or 2) a list of length 'p' whose kth entry is a numeric vector of length 'p_k'.\n")
+    cat("Number of entries in 'error.variances' must equal number of data sets and thus have the same length as 'p'.\n")
   }
 
   for(k in 1:K){
     if(length(Loads)==1){
       if(Loads == "Gaussian"){
-        Jnt.Loads.All[[k]] = matrix(stats::rnorm(r.J*p[k]), nrow = r.J, ncol = p[k])
+        Jnt.Loads.All[[k]] = matrix(rnorm(r.J*p[k]), nrow = r.J, ncol = p[k])
       } else if (Loads == "Fixed"){
         Jnt.Loads.All[[k]] = matrix(apply(matrix(0, nrow = r.J, ncol = p[k]), 1, temp.fcn), nrow = r.J)
       } else if (Loads == "Double_Exp"){
-        Jnt.Loads.All[[k]] = matrix(extraDistr::rlaplace(p[k]*(r.J)), nrow = r.J)
+        Jnt.Loads.All[[k]] = matrix(rlaplace(p[k]*(r.J)), nrow = r.J)
       } else if (Loads == "Rademacher"){
-        Jnt.Loads.All[[k]] = matrix(extraDistr::rsign(p[k]*(r.J)), nrow = r.J)
+        Jnt.Loads.All[[k]] = matrix(rsign(p[k]*(r.J)), nrow = r.J)
       }
     } else if (is.list(Loads)){
       Jnt.Loads.All[[k]] = t(Loads[[1]][[k]])
@@ -137,19 +135,19 @@ GenerateToyData <- function(n, p, JntVarEx, IndVarEx, jnt_rank = 1, equal.eig = 
     Joint.Sigs[[k]] = JntScores%*%D.J%*%Jnt.Loads.All[[k]]
 
     if(SVD.plots){
-      plot(svd(Joint.Sigs[[k]])$d, ylab = "Singular Values",
-           main = paste0("SVD of Joint Signal from X", k))
+      plot(svd(Joint.Sigs[[k]])$d, ylab = "Singular Values")
+      title(paste0("SVD of Joint Signal from X", k))
     }
     temp.IndScores = IndivScores[,(k>1)*sum(r.I[1:(k-1)])+(1:r.I[k])]
 
     if(length(Loads)==1){
       if(Loads == "Gaussian"){
-        Indiv.Loads.All[[k]] = matrix(stats::rnorm(n = p[k]*r.I[k]), nrow = r.I[k], ncol = p[k])
+        Indiv.Loads.All[[k]] = matrix(rnorm(n = p[k]*r.I[k]), nrow = r.I[k], ncol = p[k])
       } else if (Loads == "Fixed"){
         temp.fcn = function(x){x[sample(round(length(x)/4))] = 1; x}
         Indiv.Loads.All[[k]] = matrix(apply(matrix(-1, nrow = r.I[k], ncol = p[k]), 1, temp.fcn), nrow = r.I[k])
       } else if (Loads == "Double_Exp"){
-        Indiv.Loads.All[[k]] = matrix(extraDistr::rlaplace(p[k]*(r.I[k])), nrow = r.I[k])
+        Indiv.Loads.All[[k]] = matrix(rlaplace(p[k]*(r.I[k])), nrow = r.I[k])
       } else if (Loads == "Rademacher"){
         Indiv.Loads.All[[k]] = matrix(extraDistr::rsign(p[k]*(r.I[k])), nrow = r.I[k])
       }
@@ -162,20 +160,15 @@ GenerateToyData <- function(n, p, JntVarEx, IndVarEx, jnt_rank = 1, equal.eig = 
     Indiv.Sigs[[k]] = temp.IndScores%*%D.I[[k]]%*%Indiv.Loads.All[[k]]
 
     if(SVD.plots){
-      plot(svd(Indiv.Sigs[[k]])$d, ylab = "Singular Values",
-           main = paste0("SVD of Individual Signal from X", k))
+      plot(svd(Indiv.Sigs[[k]])$d, ylab = "Singular Values")
+      title(paste0("SVD of Individual Signal from X", k))
     }
 
     Sig.Mats[[k]] = Joint.Sigs[[k]] + Indiv.Sigs[[k]]
 
-    if(is.vector(error.variances) & !is.list(error.variances)){
-      Noise[[k]] = matrix(stats::rnorm(n*p[k], sd = sqrt(error.variances[k])), nrow  = n)
-    } else if(is.list(error.variances)){
-      Noise[[k]] = matrix(mvtnorm::rmvnorm(n, sigma = diag(error.variances[[k]])), nrow  = n)
-    }
+    Noise[[k]] = matrix(rnorm(n*p[k], sd = sqrt(error.variances[k])), nrow  = n)
 
-
-    Data.Mats[[k]] = CJIVE::AdjSigVarExp(Joint.Sigs[[k]], Indiv.Sigs[[k]], Noise[[k]],
+    Data.Mats[[k]] = AdjSigVarExp(Joint.Sigs[[k]], Indiv.Sigs[[k]], Noise[[k]],
                                   JntVarEx[k], IndVarEx[k])
 
     Joint.Sigs[[k]] = Data.Mats[[k]]$J

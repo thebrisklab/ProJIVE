@@ -9,7 +9,6 @@
 #' @param chord.tol Numeric. Tolerance for the chordal distance for convergence (default = -1).
 #' @param sig_hat The error variances for each dataset.
 #' @param init.loads Either a list of initial loadings or a string specifying the initialization method ("AJIVE" or "CJIVE").
-#' @param isotropic.error Logical (TRUE/FALSE) Indicator of whether to assume isotropic error, i.e., one scalar parameter for error variance per data set, or non-isotropic error, i.e., P_k scalar parameters for error variance in data set k (default = TRUE)
 #'
 #' @return A list containing:
 #'            - SubjectScoreMatrix: The matrix of subject scores.
@@ -24,9 +23,13 @@
 #'            - AIC: The Akaike Information Criterion for the model.
 #' @export
 #'
-ProJIVE_EM=function(Y, P, Q, Max.iter=10000, diff.tol=1e-8, plots=TRUE,
-                    chord.tol=-1, sig_hat=NULL, init.loads = NULL,
-                    isotropic.error = TRUE){
+#' @examples
+#' Y <- matrix(rnorm(100), 20, 5)
+#' P <- c(5, 5)
+#' Q <- c(2, 3)
+#' result <- ProJIVE_EM(Y, P, Q)
+#' str(result)
+ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-8,plots=TRUE,chord.tol=-1,sig_hat=NULL, init.loads = NULL){
 
   ########################################################################
   ####################START OF PRE-DEFINED FUNCS##########################
@@ -68,19 +71,13 @@ ProJIVE_EM=function(Y, P, Q, Max.iter=10000, diff.tol=1e-8, plots=TRUE,
   }
 
   ## FUNC to generate list(G) of D matrix from sigma vectors
-  generate_d=function(sig_lst, p_vec, iso.err){
-    d=list()
-    if(iso.err){
-      for(k in 1:K){
-        d[[k]]=rep(sig_lst[[k]],p_vec[k])
-      }
-      D=diag(unlist(d))
-    } else {
-      for(k in 1:K){
-        d[[k]] = sig_lst[[k]]
-      }
-      D=diag(unlist(do.call('c',d)))
+  generate_d=function(sig_lst, p_vec){
+
+    d=NULL
+    for(k in 1:length(p_vec)){
+      d = c(d, rep(sig_lst[k],p_vec[k]))
     }
+    D=diag(d)
 
     return(D)
   }
@@ -190,9 +187,9 @@ ProJIVE_EM=function(Y, P, Q, Max.iter=10000, diff.tol=1e-8, plots=TRUE,
     WJ = WI = list()
     for(k in 1:K){
       if((k==1)){
-        L=t(chol(stats::cov(Y[,1:P[k]])))
+        L=t(chol(cov(Y[,1:P[k]])))
       } else if(k>1){
-        L=t(chol(stats::cov(Y[,(sum(P[1:(k-1)])+1):sum(P[1:k])])))
+        L=t(chol(cov(Y[,(sum(P[1:(k-1)])+1):sum(P[1:k])])))
       }
       wji_hat[[k]]=L[,1:(Q[1]+Q[k+1])]
       WJ[[k]] = wji_hat[[k]][,1:Q[1]]
@@ -207,15 +204,10 @@ ProJIVE_EM=function(Y, P, Q, Max.iter=10000, diff.tol=1e-8, plots=TRUE,
     for(k in 2:K){
       dat.blocks[[k]] = Y[,cumsum(P[k-1])+(1:P[k])]
     }
-    if(K==2){
-      ajive.solution = CJIVE::cc.jive(dat.blocks, signal.ranks = Q[1]+Q[-1],
-                               joint.rank = Q[1], perm.test = FALSE)
+    ajive.solution = CJIVE::cc.jive(dat.blocks, signal.ranks = Q[1]+Q[-1],joint.rank = Q[1], perm.test = FALSE)
 
-      WJ = lapply(ajive.solution$sJIVE$joint_matrices, function(x) x$v)
-      WI = lapply(ajive.solution$sJIVE$indiv_matrices, function(x) x$v)
-    } else if(K>2){
-      stop("Please provide inital loading estimates from the AJIVE package, available at https://github.com/idc9/r_jive.")
-    }
+    WJ = lapply(ajive.solution$sJIVE$joint_matrices, function(x) x$v)
+    WI = lapply(ajive.solution$sJIVE$indiv_matrices, function(x) x$v)
   }
 
   # Block specific loading matrices W_k
@@ -232,7 +224,6 @@ ProJIVE_EM=function(Y, P, Q, Max.iter=10000, diff.tol=1e-8, plots=TRUE,
   if(is.null(sig_hat)){
     sig_hat = stats::rnorm(length(P))
   } else if (is.character(sig_hat) & sig_hat[1] == "MLE"){
-    sig_hat = rep(NA, K)
     for(k in 1:K){
       temp.Y = Y[,(k>1)*sum(P[1:(k-1)])+(1:P[k])]
       sig_hat[k] = mean(svd(temp.Y)$d[-(1:Q.tot[k])]^2)
@@ -240,17 +231,10 @@ ProJIVE_EM=function(Y, P, Q, Max.iter=10000, diff.tol=1e-8, plots=TRUE,
     rm(temp.Y)
   }
 
+  sig_hat = as.numeric(sig_hat)
   # Total noise matrices D
-  if(isotropic.error){
-    sig_hat = as.numeric(sig_hat)
-    d_hat=generate_d(sig_hat,P,TRUE)
-  } else{
-    sig_lst = list()
-    for(k in 1:K){
-      sig_lst[[k]] = sig_hat[k] + stats::rnorm(P[k], sd = 0.1*sig_hat[k])
-    }
-    d_hat=generate_d(sig_lst,P,FALSE)
-  }
+  d_hat=generate_d(sig_hat,P)
+
 
   # Initiate Chordal Distance
   chord.dist = NULL
@@ -292,29 +276,23 @@ ProJIVE_EM=function(Y, P, Q, Max.iter=10000, diff.tol=1e-8, plots=TRUE,
 
     d_tild=S-2*w%*%t(U)+w%*%V%*%t(w)
     wk_hat_old = wk_hat
+    sig_hat_old = sig_hat
+    for(k in 1:K){
 
-    ## Update sigma_hat
-    if(isotropic.error){
-      for(k in 1:K){
       ## Update wk_hat
+      wk_hat_temp = list()
       wk_hat[[k]]=A[[k]]%*%U%*%t(B[[k]])%*%solve(B[[k]]%*%V%*%t(B[[k]]))
+
+      ## Update sigma_hat
       sig_hat[k]=mean(diag(A[[k]]%*%diag(diag(d_tild))%*%t(A[[k]])))
-      }
-    } else{
-      sig_hat = list()
-      for(k in 1:K){
-        ## Update wk_hat
-        wk_hat[[k]]=A[[k]]%*%U%*%t(B[[k]])%*%solve(B[[k]]%*%V%*%t(B[[k]]))
-        sig_hat[[k]]=diag(A[[k]]%*%diag(diag(d_tild))%*%t(A[[k]]))
-      }
     }
 
 
     w_hat=wk_to_w(wk_hat, P, Q)
-    chord.dist = c(chord.dist, CJIVE::chord.norm.diff(w, w_hat))
+    chord.dist = c(chord.dist, chord.norm.diff(w, w_hat))
 
     ## Update d_hat
-    d_hat=generate_d(sig_hat,P,isotropic.error)
+    d_hat=generate_d(sig_hat,P)
 
     ################## End of EM-ALGORITHM ######################
     iter=iter + 1
@@ -363,15 +341,15 @@ ProJIVE_EM=function(Y, P, Q, Max.iter=10000, diff.tol=1e-8, plots=TRUE,
 
   if(plots){
     if(is.finite(min(all_obs.LogLik))) {
-      graphics::layout(matrix(1:3, nrow = 1))
+      layout(matrix(1:3, nrow = 1))
       plot(all_obs.LogLik, ylab = "Log-Likelihood", main = "Observed Data Log-Likelihood")
     } else {
-      graphics::layout(matrix(1:2, nrow = 1))
+      layout(matrix(1:2, nrow = 1))
     }
     if(is.finite(min(all_complete.LogLik))) {plot(all_complete.LogLik, ylab = "Log-Likelihood",
                                                   main = "Complete Data Log-Likelihood")}
     plot(chord.dist, ylab = "Chordal Norm", main = "Distance between consecutive \n estimates of 'W'")
-    graphics::layout(1)
+    layout(1)
   }
   theta.names = paste0("Joint_Score_", 1:Q[1])
   for(k in 1+1:K){theta.names = c(theta.names, paste0("Individual_Data", k-1, "_Score_", 1:Q[k]))}

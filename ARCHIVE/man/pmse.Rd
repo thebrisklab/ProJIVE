@@ -24,8 +24,8 @@ A numeric value. The Procrustes mean squared error.
 Adaptation of PMSE function from singR Package
 }
 \examples{
-M1 <- matrix(rnorm(25), 5, 5)
-M2 <- matrix(rnorm(25), 5, 5)
+M1 <- matrix(rnorm(20), 5, 4)
+M2 <- matrix(rnorm(20), 5, 4)
 pmse(M1 = M1, M2 = M2)
 
 S1 <- matrix(rnorm(30), 10, 3)

@@ -13,8 +13,7 @@ ProJIVE_EM(
   plots = TRUE,
   chord.tol = -1,
   sig_hat = NULL,
-  init.loads = NULL,
-  isotropic.error = TRUE
+  init.loads = NULL
 )
 }
 \arguments{
@@ -35,8 +34,6 @@ ProJIVE_EM(
 \item{sig_hat}{The error variances for each dataset.}
 
 \item{init.loads}{Either a list of initial loadings or a string specifying the initialization method ("AJIVE" or "CJIVE").}
-
-\item{isotropic.error}{Logical (TRUE/FALSE) Indicator of whether to assume isotropic error, i.e., one scalar parameter for error variance per data set, or non-isotropic error, i.e., P_k scalar parameters for error variance in data set k (default = TRUE)}
 }
 \value{
 A list containing:
@@ -53,4 +50,11 @@ A list containing:
 }
 \description{
 PJIVE ML estimation of JIVE model that uses EM algorithm
+}
+\examples{
+Y <- matrix(rnorm(100), 20, 5)
+P <- c(5, 5)
+Q <- c(2, 3)
+result <- ProJIVE_EM(Y, P, Q)
+str(result)
 }

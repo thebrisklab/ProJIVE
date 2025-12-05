@@ -10,67 +10,17 @@
 #' @export
 #'
 #' @examples
-#' M1 <- matrix(rnorm(25), 5, 5)
-#' M2 <- matrix(rnorm(25), 5, 5)
+#' M1 <- matrix(rnorm(20), 5, 4)
+#' M2 <- matrix(rnorm(20), 5, 4)
 #' pmse(M1 = M1, M2 = M2)
 #'
 #' S1 <- matrix(rnorm(30), 10, 3)
 #' S2 <- matrix(rnorm(30), 10, 3)
 #' pmse(S1 = S1, S2 = S2)
 pmse<-function (M1 = NULL, M2 = NULL, S1 = NULL, S2 = NULL, standardize = FALSE){
-
   tfun = function(x) all(x == 0)
-
-  matchICA.2<-function (S, template, M = NULL) {
-    n.comp = ncol(S)
-    n.obs = nrow(S)
-    if (n.comp > n.obs)
-      warning("Input should be n x d")
-    if (!all(dim(template) == dim(S)))
-      warning("Template should be n x d")
-    S = t(S)
-    template = t(template)
-    l2.mat1 = matrix(NA, nrow = n.comp, ncol = n.comp)
-    l2.mat2 = l2.mat1
-    for (j in 1:n.comp) {
-      for (i in 1:n.comp) {
-        l2.mat1[i, j] = sum((template[i, ] - S[j, ])^2)/n.obs
-        l2.mat2[i, j] = sum((template[i, ] + S[j, ])^2)/n.obs
-      }
-    }
-    l2.mat1 = sqrt(l2.mat1)
-    l2.mat2 = sqrt(l2.mat2)
-    l2.mat = l2.mat1 * (l2.mat1 <= l2.mat2) + l2.mat2 * (l2.mat2 <
-                                                           l2.mat1)
-    map = as.vector(clue::solve_LSAP(l2.mat))
-    if(nrow(l2.mat1)==1 && ncol(l2.mat1)==1 && l2.mat1[1,1] == 0){
-      l2.1 = 0
-    } else if (nrow(l2.mat1)==1 && ncol(l2.mat1)==1){
-      l2.1 = as.matrix(l2.mat1[1,1])
-    } else {
-      l2.1 = diag(l2.mat1[, map])
-    }
-    if(nrow(l2.mat2)==1 && ncol(l2.mat2)==1 && l2.mat2[1,1] == 0){
-      l2.2 = 0
-    } else if (nrow(l2.mat2)==1 && ncol(l2.mat2)==1){
-      l2.2 = as.matrix(l2.mat2[1,1])
-    } else {
-      l2.2 = diag(l2.mat2[, map])
-    }
-    sign.change = -1 * (l2.2 < l2.1) + 1 * (l2.1 <= l2.2)
-    perm = diag(n.comp)[, map] %*% diag(sign.change)
-    s.perm = t(perm) %*% S
-    if (!is.null(M)) {
-      M.perm = t(M) %*% perm
-      return(list(S = t(s.perm), M = t(M.perm)))
-    }
-    else {
-      t(s.perm)
-    }
-  }
-
-  if (is.null(M1) && is.null(M2) && is.null(S1) && is.null(S2)){
-    stop("need to supply either M1 and M2 or S1 and S2")}
+  if (is.null(M1) && is.null(M2) && is.null(S1) && is.null(S2))
+    stop("need to supply either M1 and M2 or S1 and S2")
   if (!is.null(M1) && !is.null(M2) && !is.null(S1) && !is.null(S2)) {
     stop("provide either (M1 and M2) or (S1 and S2) but not both (M1,M2) and (S1,S2)")
   }
@@ -139,18 +89,9 @@ pmse<-function (M1 = NULL, M2 = NULL, S1 = NULL, S2 = NULL, standardize = FALSE)
     l2.mat2 = sqrt(l2.mat2)
     l2.mat = l2.mat1 * (l2.mat1 <= l2.mat2) + l2.mat2 * (l2.mat2 <
                                                            l2.mat1)
-    map = as.vector(clue::solve_LSAP(l2.mat))
-    if(nrow(l2.mat1)==1 && ncol(l2.mat1)==1 && l2.mat1[1,1] == 0){
-      l2.1 = 0
-    } else{
-      l2.1 = diag(l2.mat1[, map])
-    }
-    if(nrow(l2.mat2)==1 && ncol(l2.mat2)==1 && l2.mat2[1,1] == 0){
-      l2.2 = 0 #ifelse(, 0, diag(l2.mat2[, map]))
-    } else{
-      l2.2 = diag(l2.mat2[, map])
-    }
-
+    map = as.vector(solve_LSAP(l2.mat))
+    l2.1 = ifelse(nrow(l2.mat1)==1 && ncol(l2.mat1)==1 && l2.mat1[1,1] == 0, 0, diag(l2.mat1[, map]))
+    l2.2 = ifelse(nrow(l2.mat2)==1 && ncol(l2.mat2)==1 && l2.mat2[1,1] == 0, 0, diag(l2.mat2[, map]))
     sign.change = -1 * (l2.2 < l2.1) + 1 * (l2.1 <= l2.2)
     perm = diag(n.comp)[, map] %*% diag(sign.change)
     M.perm = t(perm) %*% M1

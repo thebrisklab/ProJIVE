@@ -5,14 +5,30 @@
 ### Supervised by Benjamin Risk                                                             #################################
 #############################################################################################################################
 # NOTE: Change the location of 'prog.dir' to the location where you have saved the file 'Functions_to_SimulateData.R'
-prog.dir = "H:/My Documents/P-JIVE/Programs/Functions"
-prog.gipca.dir = "H:/My Documents/P-JIVE/Programs/GeneralizedIntegrativePCA-master/Functions"
-source(file.path(prog.dir, "Functions_for_CJIVE.R"))
-source(file.path(prog.dir, "Functions_for_PJIVE.R"))
+prog.dir = "H:/My Documents/ProJIVE/Programs/Functions"
+prog.gipca.dir = "H:/My Documents/ProJIVE/Programs/GeneralizedIntegrativePCA-master/Functions"
+# source(file.path(prog.dir, "Functions_for_CJIVE.R"))
+# source(file.path(prog.dir, "Functions_for_PJIVE.R"))
 source(file.path(prog.dir, "ProJIVE_Kge2.R"))
 gipca.files = list.files(prog.gipca.dir,full.names = TRUE)
 lapply(gipca.files, source)
-require(stringr)
+require(stringr); require(CJIVE)
+ajive.dir = "H:/My Documents/Applications2/r_AJIVE/R"
+files= list.files(ajive.dir)
+for (i in files) source(file.path(ajive.dir, i))
+
+w_to_w_k=function(w, P, Q){
+  
+  P=c(0,P)
+  K=length(P[-1])
+  w_k=list()
+  for(k in 1:K){
+    w_k[[k]] = w[sum(P[1:k])+(1:P[k+1]),c(1:Q[1],sum(Q[1:k])+1:Q[k+1])]
+  }
+  
+  
+  return(w_k)
+}
 
 rep_number = 0
 r.J = 1
@@ -50,7 +66,7 @@ P = p; Q = c(r.J,r.I)
 #############################################
 ############### ProJIVE  ####################
 PJIVE.res = ProJIVE_EM_Kge2(Y=Y, P=P, Q=Q, diff.tol=1e-7, sig_hat = "MLE", init.loads = "AJIVE")
-PJIVE.res = ProJIVE_EM(Y=Y, P=P, Q=Q, diff.tol=1e-7, sig_hat = "MLE", init.loads = "AJIVE")
+# PJIVE.res = ProJIVE_EM(Y=Y, P=P, Q=Q, diff.tol=1e-7, sig_hat = "MLE", init.loads = "AJIVE")
 JntScores = ToyDat$Scores$Joint
 ProJIVE.JntScores = PJIVE.res$SubjectScoreMatrix[,1:r.J]
 PJIVE.IndScores = PJIVE.res$SubjectScoreMatrix[,-(1:r.J)]

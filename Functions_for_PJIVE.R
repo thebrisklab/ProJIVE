@@ -135,10 +135,19 @@ GenerateToyData <- function(n, p, JntVarEx, IndVarEx, jnt_rank = 1, equal.eig = 
     
     Sig.Mats[[k]] = Joint.Sigs[[k]] + Indiv.Sigs[[k]]
     
-    Noise[[k]] = matrix(rnorm(n*p[k], sd = sqrt(error.variances[k])), nrow  = n)
+    if(is.numeric(error.variances)){
+      Noise[[k]] = matrix(rnorm(n*p[k], sd = sqrt(error.variances[k])), nrow  = n)
+    } else if(is.list(error.variances)){
+      Noise[[k]] = matrix(rmvnorm(n, sigma = diag(error.variances[[k]])), nrow  = n)
+    }
     
-    Data.Mats[[k]] = AdjSigVarExp(Joint.Sigs[[k]], Indiv.Sigs[[k]], Noise[[k]],
-                                  JntVarEx[k], IndVarEx[k])
+    if(JntVarAdj){
+      Data.Mats[[k]] = AdjSigVarExp(Joint.Sigs[[k]], Indiv.Sigs[[k]], Noise[[k]],
+                                    JntVarEx[k], IndVarEx[k])
+    } else {
+      Data.Mats[[k]] = list("J" = Joint.Sigs[[k]], "I" = Indiv.Sigs[[k]],
+                            "Data"= Joint.Sigs[[k]] + Indiv.Sigs[[k]] + Noise[[k]])
+    }
     
     Joint.Sigs[[k]] = Data.Mats[[k]]$J
     Indiv.Sigs[[k]] = Data.Mats[[k]]$I
@@ -206,7 +215,10 @@ GenerateToyData_OLD <- function(n, p1, p2, JntVarEx1, JntVarEx2, IndVarEx1, IndV
   colnames(JntScores) = paste("Jnt Score", 1:r.J)
   colnames(IndivScores) = c(paste("Ind X Score", 1:r.I1), paste("Ind Y Score", 1:r.I2))
   
-  if(print.cor){print("The correlation between subject scores is given by"); print(round(cor(cbind(JntScores, IndivScores)),4))}
+  if(print.cor){
+    print("The correlation between subject scores is given by");
+    print(round(cor(cbind(JntScores, IndivScores)),4))
+    }
   
   ##############################Define X Dataset##############################
   if(Loads == "Gaussian"){
@@ -220,7 +232,7 @@ GenerateToyData_OLD <- function(n, p1, p2, JntVarEx1, JntVarEx2, IndVarEx1, IndV
   } else if (Loads == "Rademacher"){
     AdjLoad.X = matrix(extraDistr::rsign(p1*(r.J+r.I1)), nrow = r.J+r.I1)
     AdjJntLoad.X = AdjLoad.X[1:r.J, , drop = FALSEALSE]
-  } 
+  }
   
   #change relavent scaling of joint components
   D.J = (equal.eig + 1)*diag(r.J:1) + equal.eig*diag(rep(1,r.J))
@@ -267,7 +279,7 @@ GenerateToyData_OLD <- function(n, p1, p2, JntVarEx1, JntVarEx2, IndVarEx1, IndV
   } else if (Loads == "Rademacher"){
     AdjLoad.Y = matrix(extraDistr::rsign(p2*(r.J+r.I2)), nrow = r.J+r.I2)
     AdjJntLoad.Y = AdjLoad.Y[1:r.J, , drop = FALSEALSE]
-  } 
+  }
   
   ##Note that the joint signal has rank = 3
   JY = JntScores%*%sqrt(D.J)%*%AdjJntLoad.Y
@@ -288,7 +300,7 @@ GenerateToyData_OLD <- function(n, p1, p2, JntVarEx1, JntVarEx2, IndVarEx1, IndV
     IndLoad.Y = AdjLoad.Y[-(1:r.J), , drop = FALSEALSE]
   } else if (Loads == "Rademacher"){
     IndLoad.Y = AdjLoad.Y[-(1:r.J), ,drop = FALSEALSE]
-  } 
+  }
   D.IY = (equal.eig + 1)*diag((r.I2:1)) + equal.eig*diag(rep(1,r.I2)) 
   
   ##Note that the individual signal has rank=2
@@ -858,8 +870,14 @@ ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-8,plots=TRUE,chord.tol=-1,s
   generate_d=function(sig_lst, p_vec){
     
     d=NULL
-    for(k in 1:length(p_vec)){
-      d = c(d, rep(sig_lst[k],p_vec[k]))
+    if(!is.list(sig_lst)){
+      for(k in 1:length(p_vec)){
+        d = c(d, rep(sig_lst[k],p_vec[k]))
+      }
+    } else if(is.list(sig_lst)){
+      for(k in 1:length(p_vec)){
+        d = c(d, sig_lst[[k]])
+      }
     }
     D=diag(d)
     
@@ -868,25 +886,22 @@ ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-8,plots=TRUE,chord.tol=-1,s
   
   obs_LogLik<-function(Y, mu, w, d){
     ##############################################
-    # input:    -mu    :a G list of d dimension vectors
-    #           -w     :a G list of dxp matrices
-    #           -d     :a G list of d length vector indicating the noise
-    #           -Y     :a nxd data frame as the observations
+    # input:    -mu: a G list of d dimension vectors
+    #           -w:  a G list of dxp matrices
+    #           -d:  a G list of d length vector indicating the noise
+    #           -Y:  a nxd data frame as the observations
     #           
     # output:   a real value of the log likelihood
     ##############################################
     
     N=dim(Y)[1]
     
-    
     lik<-rep(0, N)
     
-    
-    #         w=cbind(do.call(rbind,wj[[g]]),as.matrix(bdiag(wi[[g]])))
+    # w=cbind(do.call(rbind,wj[[g]]),as.matrix(bdiag(wi[[g]])))
     s=w%*%t(w)+d
     
     lik=dmvnorm(Y,mu,s)
-    
     
     LogLik=sum(log(lik))
     
@@ -1061,6 +1076,7 @@ ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-8,plots=TRUE,chord.tol=-1,s
     d_tild=S-2*w%*%t(U)+w%*%V%*%t(w)
     wk_hat_old = wk_hat
     sig_hat_old = sig_hat
+    sig_hat = list()
     for(k in 1:K){
       
       ## Update wk_hat 
@@ -1068,7 +1084,8 @@ ProJIVE_EM=function(Y,P,Q,Max.iter=10000,diff.tol=1e-8,plots=TRUE,chord.tol=-1,s
       wk_hat[[k]]=A[[k]]%*%U%*%t(B[[k]])%*%solve(B[[k]]%*%V%*%t(B[[k]]))
       
       ## Update sigma_hat
-      sig_hat[k]=mean(diag(A[[k]]%*%diag(diag(d_tild))%*%t(A[[k]])))
+      # sig_hat[k]=mean(diag(A[[k]]%*%diag(diag(d_tild))%*%t(A[[k]])))
+      sig_hat[[k]]=diag(A[[k]]%*%diag(diag(d_tild))%*%t(A[[k]]))
     }
     
     
@@ -1596,8 +1613,7 @@ pmse.2<-function (M1 = NULL, M2 = NULL, S1 = NULL, S2 = NULL, standardize = FALS
                                                           2, tfun))]
     return(sqrt(sum((Stemp[, indices] - S2[, indices])^2))/sqrt(nS * 
                                                                   min(p, q)))
-  }
-  else {
+  } else {
     if (sum(apply(M1, 1, tfun)) + sum(apply(M2, 1, tfun))) 
       stop("pmse not defined when M1 or M2 has a row of all zeros")
     if (standardize) {

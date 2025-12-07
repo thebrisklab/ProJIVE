@@ -1,20 +1,9 @@
-#############################################################################################################################
-### Generates a pair of toy data blocks in the manner outlined within the CJIVE manuscript  #################################
-###         After data have been generated, apply CJIVE, RJIVE, GIPCA, and ProJIVE          #################################
-### Author: Raphiel J. Murden                                                               #################################
-### Supervised by Benjamin Risk                                                             #################################
-#############################################################################################################################
-#########################             NOTES:          ##########################
-###       Change the location of 'prog.dir' to the location where you have saved the file 'Functions_to_SimulateData.R'
-# 21JUN22024: A run of this vignette seems togive similar results fro simulations
-#             conducted between 07 JUN 2024 and 17 JUN 20204.These results are not
-#             as good as previous iterations of this vignette. May try to modify
-#             simulation settings to achieve better results
-# 24JUN22024: Simulations that use a mixture of Gaussian distributions for the
-#             scores violate the independence assumption across components of the
-#             joint score subspace. However, using binomial scores, which retain
-#             independence, does not seem to improve results
-################################################################################
+####################################################################################################
+### Generates a pair of toy data blocks in the manner outlined within the CJIVE manuscript  ########
+###         After data have been generated, apply CJIVE, RJIVE, GIPCA, and ProJIVE          ########
+### Author: Raphiel J. Murden                                                               ########
+### Supervised by Benjamin Risk                                                             ########
+####################################################################################################
 # devtools::install.packages("ProJIVE_0.0.0.9000.tar.gz", repos = NULL, type = "source")
 library(singR); library(CJIVE); library(reticulate); library(cowplot);
 library(r.jive); library(ProJIVE)
@@ -39,24 +28,8 @@ prop = n/nparams
 #######################   Generate Toy  Data   #################################
 set.seed(rep_number) ##To ensure that any randomized processes give the same results each time
 
-# JntScores = matrix(rdunif(n*r.J, 0, 5), nrow = n, ncol = r.J)
-# IndivScore.X = matrix(rweibull(n*r.I1, shape = 1), nrow = n)
-# IndivScore.Y = matrix(rhnorm(n*r.I2), nrow = n)
-# Scores = cbind(JntScores, IndivScore.X, IndivScore.Y)
-
-Scores = cbind(rep(c(-1,1), each = (n)/2),
-               rep(rep(c(-1,1), each = (n)/4), times = 2),
-               rep(c(-2,2,0,-2,2), each = n/5),
-               rep(c(2,-2,2), times = c(n/4,n/2,n/4)))
-JntLoad.X = matrix(rep(1:0, each = p1/2), nrow = r.J, ncol = p1)
-IndLoad.X = matrix(1, nrow = r.I1, ncol = p1)
-JntLoad.Y = matrix(rep(1:0, times = c(p2/5,p2*4/5)), nrow = r.J, ncol = p2)
-IndLoad.Y = rbind(rep(1:0, each = p2/2),rep(0:1, each = p2/2))
-
-Loads = list(list(t(JntLoad.X), t(JntLoad.Y)), list(t(IndLoad.X), t(IndLoad.Y)))
-
 ###Construct Datasets
-true_signal_ranks = r.J + c(r.I1,r.I2)                          ##true ranks of overall signals
+true_signal_ranks = r.J + c(r.I1,r.I2)    ##true ranks of overall signals
 ToyDat = ProJIVE::GenerateToyData(n = n, p = c(p1, p2), JntVarEx = c(JntVarEx1, JntVarEx2), #mix.probs = c(.5,.5),
                          equal.eig = F, IndVarEx = c(IndVarEx1, IndVarEx2),
                          jnt_rank = r.J, ind_ranks = c(r.I1, r.I2), JntVarAdj = F,
@@ -66,15 +39,11 @@ ToyDat = ProJIVE::GenerateToyData(n = n, p = c(p1, p2), JntVarEx = c(JntVarEx1, 
                          error.variances = list(rep(1:2, p1/2), rep(1:2, p2/2))
 )
 
-## Proportions of groups for mixture
-mix.probs = c(0.2, 0.5, 0.3)
-diagnoses = factor(c(rep(1, each = n*mix.probs[1]),rep(2, each = n*mix.probs[2]),
-                     rep(3, each = n*mix.probs[3])))
 blocks <- ToyDat[["Data Blocks"]]
-##Setup input parameters to use Gavin's EM code
+## Setup data to input into ProJIVE
 Y = do.call(cbind, blocks)
-# Y = do.call(cbind, lapply(blocks, function(x) scale(x, scale = FALSE)))
-P = c(p1, p2); Q = c(r.J,r.I1,r.I2)
+P = c(p1, p2)
+Q = c(r.J,r.I1,r.I2)
 
 # Theta
 JntScores = ToyDat[['Scores']][['Joint']]
@@ -120,42 +89,11 @@ Indiv.all = cbind(IX, IY)
 s2n = var(c(Jnt.all+Indiv.all))/var(c(cbind(EX,EY)))
 
 
-##Looks like the variances are about equal to me ( +/- 10%)?
-# plot(apply((blocks[[1]] - AX), 2, sd))
-# plot(apply((blocks[[2]] - AY), 2, sd))
-
-true.load.dat.X = data.frame(Name = factor(1:(p1*(r.J+r.I1)),
-                                           labels =  c(paste0(paste0("X", 1:p1), "_J",
-                                                              rep(1:r.J, each = p1)),
-                                                       paste0(paste0("X", 1:p1), "_I",
-                                                              rep(1:r.I1, each = p1)))),
-                             Loading = abs(c(cbind(t(ToyDat$Loadings$Joint[[1]]),
-                                                   t(ToyDat$Loadings$Indiv[[1]])))),
-                             Upper = 0,
-                             Lower = 0,
-                             Type = factor(2,levels = 1:2, labels = c("Estimate", "Truth")))
-true.load.dat.Y = data.frame(Name = factor(1:(p2*(r.J+r.I2)),
-                                           labels =  c(paste0(paste0("Y", 1:p2), "_J",
-                                                              rep(1:r.J, each = p2)),
-                                                       paste0(paste0("Y", 1:p2), "_I",
-                                                              rep(1:r.I2, each = p2)))),
-                             Loading = abs(c(cbind(t(ToyDat$Loadings$Joint[[2]]),
-                                                   t(ToyDat$Loadings$Indiv[[2]])))),
-                             Upper = 0,
-                             Lower = 0,
-                             Type = factor(2,levels = 1:2, labels = c("Estimate", "Truth")))
-true.load.dat.X$ScaledLoading = true.load.dat.X$Loading/sqrt(sum(true.load.dat.X$Loading^2))
-true.load.dat.Y$ScaledLoading = true.load.dat.Y$Loading/sqrt(sum(true.load.dat.Y$Loading^2))
-
-example.data = list(Y, P, Q)
-# save(example.data, file = "C:/Users/rmurden/OneDrive - Emory/Documents/GitHub/ProJIVE/Examples/Example for Gavin/ToyData.RData")
-# write.csv(Y, file = "C:/Users/rmurden/OneDrive - Emory/Documents/GitHub/ProJIVE/Examples/Example for Gavin/ToyData.csv")
-
 ############       ProJIVE with loadings and error variance initialized from the truth        ###########
 WJ.init = list(JntLd.X, JntLd.Y)
 WI.init = list(IndivLd.X, IndivLd.Y)
 init.loads = list(WJ.init, WI.init)
-PJIVE.res.RJM.all = ProJIVE(Y=Y, P=P, Q=Q, Max.iter = 5000, init.loads = "CJIVE", num.starts = 1,
+PJIVE.res.RJM.all = ProJIVE(Y=Y, P=P, Q=Q, Max.iter = 5000, init.loads = init.loads, num.starts = 1,
                            sig_hat = "MLE", diff.tol = 1e-14, return.all.starts = TRUE,
                            plots = TRUE, isotropic.error = TRUE)
 PJIVE.res.RJM = PJIVE.res.RJM.all$ProJIVE_Results[[1]]
@@ -169,13 +107,9 @@ RSE.Jnt - MatVar(Jnt.all - PJIVE.Jnt.all)/MatVar(Jnt.all)
 RSE.Indiv = norm(Indiv.all - PJIVE.Indiv.all, type = "F")^2/norm(Indiv.all, type = "F")^2
 RSE.Indiv - MatVar(Indiv.all - PJIVE.Indiv.all)/MatVar(Indiv.all)
 
-PJIVE.scores.unscaled = PJIVE.res.RJM$SubjectScoreMatrix
-score.SDs = apply(PJIVE.scores.unscaled, 2, sd)
-PJIVE.scores = PJIVE.scores.unscaled #%*%diag(score.SDs^-1)
-PJIVE.loads.X.unscaled = PJIVE.res.RJM$LoadingMatrix[1:p1,-(sum(Q):(sum(Q[-3])+1))]
-PJIVE.loads.X = PJIVE.loads.X.unscaled #%*%diag(score.SDs[1:(r.J+r.I2)])
-PJIVE.loads.Y.unscaled = PJIVE.res.RJM$LoadingMatrix[-(1:p1),-(r.J+1:r.I1)]
-PJIVE.loads.Y = PJIVE.loads.Y.unscaled #%*%diag(score.SDs[c(1:r.J, (r.J+r.I1)+(1:r.I2))])
+PJIVE.scores = PJIVE.res.RJM$SubjectScoreMatrix
+PJIVE.loads.X = PJIVE.res.RJM$LoadingMatrix[1:p1,-(sum(Q):(sum(Q[-3])+1))]
+PJIVE.loads.Y = PJIVE.res.RJM$LoadingMatrix[-(1:p1),-(r.J+1:r.I1)]
 
 PJIVE.err.var = PJIVE.res.RJM$ErrorVariances
 summary(PJIVE.err.var[[2]])

@@ -1,6 +1,6 @@
 ####################################################################################################
-### Generates a pair of toy data blocks in the manner outlined within the CJIVE manuscript  ########
-###         After data have been generated, apply CJIVE, RJIVE, GIPCA, and ProJIVE          ########
+### Generates a replicate pair of synthetic data blocks from the simulations study described in ####
+###         the ProJIVE Manuscript. After data have been generated, apply  ProJIVE          ########
 ### Author: Raphiel J. Murden                                                               ########
 ### Supervised by Benjamin Risk                                                             ########
 ####################################################################################################

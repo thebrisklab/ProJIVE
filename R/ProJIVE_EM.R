@@ -67,71 +67,81 @@ ProJIVE_EM=function(Y, P, Q, Max.iter=10000, diff.tol=1e-8, plots=TRUE,
     return(w_k)
   }
 
-  ## FUNC to generate list(G) of D matrix from sigma vectors
+  ## FUNC to generate the length-p vector of D's diagonal entries from sigma
+  ## vectors. D is always diagonal in this model (Sec 2.2), so it is kept as
+  ## a plain vector rather than expanded into a dense pxp matrix: forming
+  ## that matrix (and calling solve()/det() on it, as the previous
+  ## implementation did every EM iteration) costs O(p^3) even though the
+  ## true cost of inverting/taking the determinant of a diagonal matrix is
+  ## O(p). For p in the thousands this difference is the dominant cost of
+  ## the algorithm.
   generate_d=function(sig_lst, p_vec, iso.err){
     d=list()
     if(iso.err){
       for(k in 1:K){
         d[[k]]=rep(sig_lst[[k]],p_vec[k])
       }
-      D=diag(unlist(d))
     } else {
       for(k in 1:K){
         d[[k]] = sig_lst[[k]]
       }
-      D=diag(unlist(do.call('c',d)))
     }
 
-    return(D)
+    return(unlist(d))
   }
 
-  obs_LogLik<-function(Y, mu, w, d){
+  ## Efficient observed-data log-likelihood using the matrix determinant lemma
+  ## and Woodbury identity. Avoids ever forming the dense pxp covariance
+  ## C = W W^T + D (or its Cholesky/inverse), which is O(p^3) per call and
+  ## infeasible for large p (e.g., p in the thousands). Instead all work is
+  ## done with the low-rank Wp x q loadings and the diagonal noise vector,
+  ## which is O(N*p*q + p*q^2).
+  obs_LogLik<-function(Yc, w, d_vec){
     ##############################################
-    # input:    -mu    :a G list of d dimension vectors
-    #           -w     :a G list of dxp matrices
-    #           -d     :a G list of d length vector indicating the noise
-    #           -Y     :a nxd data frame as the observations
+    # input:    -Yc    : an nxp matrix of centered observations
+    #           -w     : the pxq stacked loading matrix
+    #           -d_vec : length-p vector of (diagonal) noise variances
     #
     # output:   a real value of the log likelihood
     ##############################################
+    N=nrow(Yc)
+    p=ncol(Yc)
+    q=ncol(w)
 
-    N=dim(Y)[1]
+    A = w/d_vec                      # solve(D)%*%w, done row-wise (D diagonal)
+    YcA = Yc%*%A                     # N x q
+    SA = crossprod(Yc, YcA)/N        # S%*%A without ever forming S (p x p)
+    M = diag(q) + crossprod(w, A)    # I_q + W^T D^-1 W
+    c_solv = solve(M)
 
+    logdetC = sum(log(d_vec)) + as.numeric(determinant(M, logarithm = TRUE)$modulus)
+    trace_term = sum(colMeans(Yc^2)/d_vec) - sum(diag(c_solv%*%crossprod(A, SA)))
 
-    lik<-rep(0, N)
-
-
-    #         w=cbind(do.call(rbind,wj[[g]]),as.matrix(bdiag(wi[[g]])))
-    s=w%*%t(w)+d
-
-    lik=mvtnorm::dmvnorm(Y,mu,s)
-
-
-    LogLik=sum(log(lik))
+    LogLik = -(N/2)*(p*log(2*pi) + logdetC) - (N/2)*trace_term
 
     return(LogLik)
   }
 
-  complete_LogLik<-function(Y, theta, mu, w, d){
+  ## Efficient complete-data log-likelihood: vectorized over subjects (no
+  ## per-observation loop), and log|D| computed as sum(log(diag)) instead of
+  ## det() on a dense pxp matrix (also O(p^3) otherwise).
+  complete_LogLik<-function(Y, theta, mu, w, d_vec){
     ##############################################
-    # input:    -mu    :a G list of d dimension vectors
-    #           -w     :a G list of dxp matrices
-    #           -d     :a G list of d length vector indicating the noise
-    #           -Y     :a nxd data frame as the observations
+    # input:    -mu    : length-p mean vector
+    #           -w     : the pxq stacked loading matrix
+    #           -d_vec : length-p vector of (diagonal) noise variances
+    #           -theta : nxq matrix of (expected) subject scores
+    #           -Y     : an nxp data matrix as the observations
     #
     # output:   a real value of the log likelihood
     ##############################################
 
     N=dim(Y)[1]
 
-    constant.term = -(N/2)*(sum(c(ncol(Y),ncol(w)))*log(2*pi) + log(det(d)))
+    constant.term = -(N/2)*(sum(c(ncol(Y),ncol(w)))*log(2*pi) + sum(log(d_vec)))
 
-    kernel.term = 0
-    for(i in 1:N){
-      Yi = matrix(Y[i,], ncol = 1)
-      theta_i = matrix(theta[i,], ncol = 1)
-      kernel.term = kernel.term + t(Yi - w%*%theta_i)%*%diag(diag(d)^-1)%*%(Yi - w%*%theta_i) + sum(theta_i^2)
-    }
+    Resid = sweep(Y, 2, mu) - theta%*%t(w)
+    kernel.term = sum(sweep(Resid^2, 2, d_vec, "/")) + sum(theta^2)
 
     LogLik=constant.term-0.5*kernel.term
 
@@ -257,12 +267,23 @@ ProJIVE_EM=function(Y, P, Q, Max.iter=10000, diff.tol=1e-8, plots=TRUE,
   mu_hat=apply(as.matrix(Y),2,sum)/N
 
   Iq=diag(sum(Q))
-  Ip=diag(sum(P))
 
-  c_solv=solve(Iq+t(w_hat)%*%solve(d_hat)%*%w_hat)
-  exp.theta =  Y%*%solve(d_hat)%*%w_hat%*%c_solv
+  # Data enter the algorithm only through Yc (centered data). mu_hat never
+  # changes inside the EM loop, so Yc (and any block-index bookkeeping) is
+  # computed once here rather than on every iteration.
+  Yc=sweep(Y, 2, mu_hat)
+  cumP = c(0, cumsum(P))
+  block_idx = lapply(1:K, function(k) (cumP[k]+1):cumP[k+1])
 
-  all_obs.LogLik=obs_LogLik(Y, mu_hat, w_hat, d_hat)
+  # d_hat is a length-p vector of the diagonal of D. Since D is diagonal,
+  # solve(D)%*%M / D^{-1} is just M divided row-wise by d_hat -- no pxp
+  # matrix (or its inverse/determinant) is ever formed.
+  Dinv = function(M) M/d_hat
+
+  c_solv=solve(Iq+crossprod(w_hat, Dinv(w_hat)))
+  exp.theta =  Yc%*%Dinv(w_hat)%*%c_solv
+
+  all_obs.LogLik=obs_LogLik(Yc, w_hat, d_hat)
   all_complete.LogLik = complete_LogLik(Y, exp.theta, mu_hat, w_hat, d_hat)
 
   # Set initial iteration number:
@@ -275,43 +296,49 @@ ProJIVE_EM=function(Y, P, Q, Max.iter=10000, diff.tol=1e-8, plots=TRUE,
   )
   {
     ################## START OF EM-ALGORITHM ######################
-    ## Store some values to save computation time
-    Yc=sweep(Y, 2, mu_hat)
-    S=t(Yc)%*%Yc/N
-
-
     w=w_hat
     d=d_hat
 
-    c_solv=solve(Iq+t(w)%*%solve(d_hat)%*%w)
+    ## E-step conditional moments. S = t(Yc)%*%Yc/N (the pxp sample
+    ## covariance) is never formed: any product S%*%X for a p x q matrix X
+    ## is computed as crossprod(Yc, Yc%*%X)/N, which costs O(N*p*q) instead
+    ## of O(p^2) to store S plus O(p^2*q) to multiply it -- this is what
+    ## made the algorithm infeasible for datasets with thousands of
+    ## features.
+    A_mat = Dinv(w)                                  # solve(D)%*%w
+    SA = crossprod(Yc, Yc%*%A_mat)/N                  # S%*%solve(D)%*%w
+    c_solv=solve(Iq+crossprod(w, A_mat))
+    U=SA%*%c_solv
+    V=c_solv+c_solv%*%crossprod(A_mat, SA)%*%c_solv
 
-    U=S%*%solve(d_hat)%*%w%*%c_solv
-    V=c_solv+c_solv%*%t(w)%*%solve(d_hat)%*%S%*%solve(d_hat)%*%w%*%c_solv
-
-    ## Update d_tild
-
-    d_tild=S-2*w%*%t(U)+w%*%V%*%t(w)
     wk_hat_old = wk_hat
 
-    ## Update sigma_hat
+    ## Update wk_hat (M-step for W; does not depend on D, see manuscript Eq. 9)
+    for(k in 1:K){
+      wk_hat[[k]]=A[[k]]%*%U%*%t(B[[k]])%*%solve(B[[k]]%*%V%*%t(B[[k]]))
+    }
+    w_hat=wk_to_w(wk_hat, P, Q)
+    chord.dist = c(chord.dist, CJIVE::chord.norm.diff(w, w_hat))
+
+    ## Update sigma_hat using the *updated* w_hat, matching the closed-form
+    ## solution in the manuscript (Eq. 9), which plugs the new W_k into the
+    ## D_k formula. Only the diagonal of
+    ##   d_tild = S - 2*w_hat%*%t(U) + w_hat%*%V%*%t(w_hat)
+    ## is ever needed, so it is computed directly as a length-p vector
+    ## instead of forming the full pxp matrix.
+    diag_S = colMeans(Yc^2)
+    diag_d_tild = diag_S - 2*rowSums(w_hat*U) + rowSums((w_hat%*%V)*w_hat)
+
     if(isotropic.error){
       for(k in 1:K){
-      ## Update wk_hat
-      wk_hat[[k]]=A[[k]]%*%U%*%t(B[[k]])%*%solve(B[[k]]%*%V%*%t(B[[k]]))
-      sig_hat[k]=mean(diag(A[[k]]%*%diag(diag(d_tild))%*%t(A[[k]])))
+        sig_hat[k]=mean(diag_d_tild[block_idx[[k]]])
       }
     } else{
       sig_hat = list()
       for(k in 1:K){
-        ## Update wk_hat
-        wk_hat[[k]]=A[[k]]%*%U%*%t(B[[k]])%*%solve(B[[k]]%*%V%*%t(B[[k]]))
-        sig_hat[[k]]=diag(A[[k]]%*%diag(diag(d_tild))%*%t(A[[k]]))
+        sig_hat[[k]]=diag_d_tild[block_idx[[k]]]
       }
     }
-
-
-    w_hat=wk_to_w(wk_hat, P, Q)
-    chord.dist = c(chord.dist, CJIVE::chord.norm.diff(w, w_hat))
 
     ## Update d_hat
     d_hat=generate_d(sig_hat,P,isotropic.error)
@@ -320,10 +347,10 @@ ProJIVE_EM=function(Y, P, Q, Max.iter=10000, diff.tol=1e-8, plots=TRUE,
     iter=iter + 1
 
     # Compute subject scores
-    c_solv=chol2inv(chol(Iq+t(w_hat)%*%solve(d_hat)%*%w_hat))
-    exp.theta = Y%*%solve(d_hat)%*%w_hat%*%c_solv
+    c_solv=chol2inv(chol(Iq+crossprod(w_hat, Dinv(w_hat))))
+    exp.theta = Yc%*%Dinv(w_hat)%*%c_solv
 
-    all_obs.LogLik=append(all_obs.LogLik, obs_LogLik(Y, mu_hat, w_hat, d_hat))
+    all_obs.LogLik=append(all_obs.LogLik, obs_LogLik(Yc, w_hat, d_hat))
     all_complete.LogLik=append(all_complete.LogLik, complete_LogLik(Y, exp.theta, mu_hat, w_hat, d_hat))
 
     #Take previous iteration of solution if current iteration decreases LogLik
